@@ -1,0 +1,13 @@
+Dim a = 6
+Dim b = 3
+Dim c = "TEST"
+Dim d = "Concat"
+Print(a * 6 + (2+3) * b)
+Print(c + d)
+If a < b Then
+	Print("Yes")
+ElseIf a < 4 Then
+	Print("Hi")
+Else
+	Print("No")
+End If
