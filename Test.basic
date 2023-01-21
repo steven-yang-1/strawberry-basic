@@ -1,30 +1,9 @@
-Dim a = 6, b = 3
-Dim c = "TEST"
-Dim d = "Concat"
-Dim e, kae, eee = 6
-a = 7
-
-PrintLine(a)
-PrintLine(b)
-PrintLine(e)
-
-If a < b Then
-	PrintLine("Yes")
-ElseIf a > 3 Then
-	PrintLine("La")
-ElseIf a < 4 Then
-	PrintLine("Hi")
-Else
-	PrintLine("No")
-	PrintLine("Second Time")
-End If
-
-If a > 10 Then
-	PrintLine("Equal")
-End If
-
-If True Then
-	PrintLine("Equal")
-ElseIf a < 11 Then
-	PrintLine("EE")
-End If
+Dim i = 0
+While i < 5
+	PrintLine(i)
+	i = i + 1
+End While
+PrintLine("")
+For j = 10 To 0 Step -1
+	PrintLine(j)
+End For

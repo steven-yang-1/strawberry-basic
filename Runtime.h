@@ -20,6 +20,10 @@
 #define NODE_TYPE_VAR 10013
 #define NODE_TYPE_REASSIGN 10014
 #define NODE_TYPE_EQ 10015
+#define NODE_TYPE_BITAND 10016
+#define NODE_TYPE_BITOR 10017
+#define NODE_TYPE_WHILE_STATEMENT 10018
+#define NODE_TYPE_FOR_STATEMENT 10019
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -90,23 +94,18 @@ typedef struct AST {
 	struct AST* right_node;
 } AST;
 
-typedef struct VariableBlock {
+typedef struct Dimension {
 	int node_type;
-	char* type;
 	char* var_name;
-	int i_val;
-	double d_val;
-	char* s_val;
+	AST* node;
 	AST* next_dim;
-} VariableBlock;
+} Dimension;
 
-VariableBlock* var_make_null(char* var_name);
+Dimension* var_make_null(char* var_name);
 
-VariableBlock* var_make_int(char* var_name, int content);
+AST* make_dim(char* var_name, AST* node, AST* next_dim);
 
-VariableBlock* var_make_decimal(char* var_name, double content);
-
-VariableBlock* var_make_string(char* var_name, char* content);
+AST* make_redim(char* var_name, AST* node);
 
 typedef struct IfStatement {
 	int node_type;
@@ -130,6 +129,24 @@ typedef struct Function {
 AST* make_function_call(char* name, AST* expr_list);
 
 ListBuffer* integrate_params(AST* node);
+
+typedef struct WhileStatement {
+	int node_type;
+	AST* condition;
+	AST* statements;
+} WhileStatement;
+
+AST* make_while_expression(AST* condition, AST* statements);
+
+typedef struct ForStatement {
+	int node_type;
+	AST* dim;
+	AST* until;
+	AST* step;
+	AST* statements;
+} ForStatement;
+
+AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements);
 
 RuntimeValue* execute(AST* ast);
 

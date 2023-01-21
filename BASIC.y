@@ -17,7 +17,10 @@
 %token <identifier> VARIABLE_NAME
 %token <expr> STRING
 %token DIM
+%token BITAND BITOR
 %token IF ELSEIF ELSE ENDIF THEN
+%token WHILE ENDWHILE DO
+%token FOR TO DOWNTO STEP ENDFOR
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -39,8 +42,11 @@
 %type <expr> statements;
 %type <expr> expr_list;
 %type <expr> _expr_list;
-%type <expr> _func_or_reassign
+%type <expr> _func_or_var
 %type <expr> dimension
+%type <expr> while_statement
+%type <expr> for_statement
+%type <expr> for_step
 
 %%
 statements:	{$$ = NULL;}|_statements		{
@@ -51,13 +57,19 @@ _statements:	{$$ = NULL;}|statement _statements	{
 								$$ = make_ast(NODE_TYPE_STATEMENT, $1, $2);
 							};
 
-statement:	expression				{
-								$$ = $1;
+statement:	VARIABLE_NAME assignment		{
+								$$ = make_redim($1, $2);
 							}
-	|	STRING					{
+	|	expression				{
 								$$ = $1;
 							}
 	|	if_statement				{
+								$$ = $1;
+							}
+	|	while_statement			{
+								$$ = $1;
+							}
+	|	for_statement				{
 								$$ = $1;
 							}
 	|	DIM dimension				{
@@ -67,38 +79,12 @@ statement:	expression				{
 	
 dimension:
 	VARIABLE_NAME assignment			{
-								if ($2 == NULL) {
-									$$ = (AST*) var_make_null($1);
-								} else {
-									if (((Constant *)$2)->type == C_INT) {
-										$$ = (AST*) var_make_int($1, ((Constant *)$2)->i_val);
-									} else if (((Constant *)$2)->type == C_DECIMAL) {
-										$$ = (AST*) var_make_decimal($1, ((Constant *)$2)->d_val);
-									} else if (((Constant *)$2)->type == C_STRING){
-										$$ = (AST*) var_make_string($1, ((Constant *)$2)->s_val);
-									}
-								}
+								$$ = make_dim($1, $2, NULL);
 							}
 	|	VARIABLE_NAME assignment ',' dimension			{
-											if ($2 == NULL) {
-												VariableBlock* new_node = var_make_null($1);
-												new_node->next_dim = $4;
-												$$ = (AST*)new_node;
-											} else {
-												if (((Constant *)$2)->type == C_INT) {
-													VariableBlock* new_node = var_make_int($1, ((Constant *)$2)->i_val);
-													new_node->next_dim = $4;
-													$$ = (AST*)new_node;
-												} else if (((Constant *)$2)->type == C_DECIMAL) {
-													VariableBlock* new_node = var_make_decimal($1, ((Constant *)$2)->d_val);
-													new_node->next_dim = $4;
-													$$ = (AST*)new_node;
-												} else if (((Constant *)$2)->type == C_STRING){
-													VariableBlock* new_node = var_make_string($1, ((Constant *)$2)->s_val);
-													new_node->next_dim = $4;
-													$$ = (AST*)new_node;
-												}
-											}
+											AST* node = $4;
+											node->node_type = NODE_TYPE_ASSIGN_VAR;
+											$$ = make_dim($1, $2, node);
 										}
 	;
 if_statement:		IF expression THEN _statements elseif_statement else_statement ENDIF	{
@@ -113,12 +99,45 @@ else_statement:	{$$ = NULL;}
 	|		ELSE _statements							{
 													$$ = make_ast(NODE_TYPE_ELSE, $2, NULL);
 												};
-
+while_statement:	WHILE expression _statements ENDWHILE					{
+													$$ = make_while_expression($2, $3);
+												};
+for_statement:		FOR VARIABLE_NAME DEFSTR expression TO expression for_step _statements ENDFOR {
+								Dimension* dim = make_dim($2, $4, NULL);
+								AST* step;
+								if ($7 == NULL) {
+									// default step
+									step = make_ast_integer(1);
+								} else {
+									step = $7;
+								}
+								$$ = make_for_expression((AST*)dim, $6, step, $8);
+							};
+for_step:						{
+								$$ = NULL;
+							}
+	|	STEP expression				{
+								$$ = $2;
+							}
 expression:	NUMBER					{
 								$$ = $1;
 							}
+	|	'-' NUMBER				{
+								if (((Constant *)$2)->type == C_INT) {
+									((Constant *)$2)->i_val = -(((Constant *)$2)->i_val);
+								} else if (((Constant *)$2)->type == C_DECIMAL) {
+									((Constant *)$2)->d_val = -(((Constant *)$2)->d_val);
+								}
+								$$ = $2;
+							}
 	|	expression '=' '=' expression		{
 								$$ = make_ast(NODE_TYPE_EQ, $1, $4);
+							}
+	|	expression BITAND expression		{
+								$$ = make_ast(NODE_TYPE_BITAND, $1, $3);
+							}
+	|	expression BITOR expression		{
+								$$ = make_ast(NODE_TYPE_BITOR, $1, $3);
 							}
 	|	expression '&' expression		{
 								$$ = make_ast('&', $1, $3);
@@ -165,25 +184,11 @@ expression:	NUMBER					{
 	|	'(' expression ')'			{
 								$$ = make_ast(NODE_TYPE_PRIORITY, $2, NULL);
 							}
-	|	VARIABLE_NAME _func_or_reassign	{
+	|	VARIABLE_NAME _func_or_var		{
 								if ($2 == NULL) {
 									$$ = (AST*) make_var($1);
 								} else if (((AST*)$2)->node_type == NODE_TYPE_EXPR_ITEM) {
 									$$ = make_function_call($1, $2);
-								} else if (((AST*)$2)->node_type == NODE_TYPE_CONSTANT) {
-									if (((Constant *)$2)->type == C_INT) {
-										AST* node = (AST*) var_make_int($1, ((Constant *)$2)->i_val);
-										node->node_type = NODE_TYPE_REASSIGN;
-										$$ = node;
-									} else if (((Constant *)$2)->type == C_DECIMAL) {
-										AST* node = (AST*) var_make_decimal($1, ((Constant *)$2)->d_val);
-										node->node_type = NODE_TYPE_REASSIGN;
-										$$ = node;
-									} else if (((Constant *)$2)->type == C_STRING){
-										AST* node = (AST*) var_make_string($1, ((Constant *)$2)->s_val);
-										node->node_type = NODE_TYPE_REASSIGN;
-										$$ = node;
-									}
 								}
 							}
 	|	STRING					{
@@ -191,15 +196,12 @@ expression:	NUMBER					{
 							}
 	;
 
-_func_or_reassign:					{
+_func_or_var:						{
 								$$ = NULL;
 							}
 	|	'(' expr_list ')'			{
 								$$ = $2;
-							}
-	|	assignment				{
-								$$ = $1;
-							}
+							};
 
 expr_list:						{ 	$$=NULL;	}
 	|	expression				{
@@ -226,10 +228,7 @@ assignment:						{
 							}
 	;
 	
-_assignment:	NUMBER					{
-								$$ = $1;
-							}
-	|	STRING						{
+_assignment:	expression				{
 								$$ = $1;
 							}
 	;

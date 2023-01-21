@@ -132,44 +132,30 @@ double runtime_as_decimal(RuntimeValue* value) {
 	}
 }
 
-VariableBlock* var_make_null(char* var_name) {
-	VariableBlock* new_block = (VariableBlock*) malloc(sizeof(VariableBlock) + 1);
+Dimension* var_make_null(char* var_name) {
+	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
 	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
-	new_block->type = "null";
+	//new_block->type = "null";
 	new_block->var_name = var_name;
 	new_block->next_dim = NULL;
 	return new_block;
 }
 
-VariableBlock* var_make_int(char* var_name, int content) {
-	VariableBlock* new_block = (VariableBlock*) malloc(sizeof(VariableBlock) + 1);
+AST* make_dim(char* var_name, AST* node, AST* next_dim) {
+	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
 	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
-	new_block->type = "integer";
 	new_block->var_name = var_name;
-	new_block->i_val = content;
-	new_block->next_dim = NULL;
-	return new_block;
+	new_block->node = node;
+	new_block->next_dim = next_dim;
+	return (AST*) new_block;
 }
 
-VariableBlock* var_make_decimal(char* var_name, double content) {
-	VariableBlock* new_block = (VariableBlock*) malloc(sizeof(VariableBlock) + 1);
-	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
-	new_block->type = "decimal";
+AST* make_redim(char* var_name, AST* node) {
+	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
+	new_block->node_type = NODE_TYPE_REASSIGN;
 	new_block->var_name = var_name;
-	new_block->d_val = content;
-	new_block->next_dim = NULL;
-	return new_block;
-}
-
-VariableBlock* var_make_string(char* var_name, char* content) {
-	VariableBlock* new_block = (VariableBlock*) malloc(sizeof(VariableBlock) + 1);
-	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
-	new_block->type = "string";
-	new_block->var_name = var_name;
-	new_block->s_val = malloc(sizeof(char) * strlen(content) + 1);
-	strcpy(new_block->s_val, content);
-	new_block->next_dim = NULL;
-	return new_block;
+	new_block->node = node;
+	return (AST*) new_block;
 }
 
 AST* make_ast(int node_type, AST* left_node, AST* right_node) {
@@ -199,40 +185,46 @@ AST* make_function_call(char* name, AST* expr_list) {
 	return (AST*) new_val;
 }
 
+AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements) {
+	ForStatement* new_val = malloc(sizeof(ForStatement) + 1);
+	new_val->node_type = NODE_TYPE_FOR_STATEMENT;
+	new_val->dim = dim;
+	new_val->until = until;
+	new_val->step = step;
+	new_val->statements = statements;
+	return (AST*) new_val;
+}
+
 RuntimeValue* execute(AST* ast) {
 	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
-		VariableBlock* var_block = (VariableBlock*) ast;
-		if (hash_has_key(env->vars, var_block->var_name)) {
+		Dimension* dim = (Dimension*) ast;
+		if (hash_has_key(env->vars, dim->var_name)) {
 			yyerror("Defined variable.");
 			exit(0);
 		}
-		if (!strcmp(var_block->type, "integer")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_integer(var_block->i_val));
-		} else if (!strcmp(var_block->type, "decimal")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_decimal(var_block->d_val));
-		} else if (!strcmp(var_block->type, "string")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_string(var_block->s_val));
-		} else if (!strcmp(var_block->type, "null")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_null());
+		RuntimeValue* value = NULL;
+		if (dim->node != NULL) {
+			value = execute(dim->node);
+			hash_put(env->vars, dim->var_name, value);
+		} else {
+			hash_put(env->vars, dim->var_name, make_runtime_null());
 		}
-		if (var_block->next_dim != NULL) {
-			execute(var_block->next_dim);
+		if (dim->next_dim != NULL) {
+			execute(dim->next_dim);
+		}
+		if (value != NULL) {
+			return value;
 		}
 	} else if (ast->node_type == NODE_TYPE_REASSIGN) {
-		VariableBlock* var_block = (VariableBlock*) ast;
-		if (!hash_has_key(env->vars, var_block->var_name)) {
+		Dimension* dim = (Dimension*) ast;
+		if (!hash_has_key(env->vars, dim->var_name)) {
 			yyerror("Undefined variable.");
 			exit(0);
 		}
-		hash_delete(env->vars, var_block->var_name);
-		if (!strcmp(var_block->type, "integer")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_integer(var_block->i_val));
-		} else if (!strcmp(var_block->type, "decimal")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_decimal(var_block->d_val));
-		} else if (!strcmp(var_block->type, "string")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_string(var_block->s_val));
-		} else if (!strcmp(var_block->type, "null")) {
-			hash_put(env->vars, var_block->var_name, make_runtime_null());
+		if (dim->node != NULL) {
+			hash_put(env->vars, dim->var_name, execute(dim->node));
+		} else {
+			hash_put(env->vars, dim->var_name, make_runtime_null());
 		}
 	} else if (ast->node_type == NODE_TYPE_CONSTANT) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
@@ -274,6 +266,18 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) && runtime_as_integer(r));
+		}
+	} else if (ast->node_type == NODE_TYPE_BITAND) {
+		RuntimeValue* l = execute(ast->left_node);
+		RuntimeValue* r= execute(ast->right_node);
+		if (l->type == C_INT && r->type == C_INT) {
+			return make_runtime_integer(runtime_as_integer(l) & runtime_as_integer(r));
+		}
+	} else if (ast->node_type == NODE_TYPE_BITOR) {
+		RuntimeValue* l = execute(ast->left_node);
+		RuntimeValue* r= execute(ast->right_node);
+		if (l->type == C_INT && r->type == C_INT) {
+			return make_runtime_integer(runtime_as_integer(l) | runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '|') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -429,6 +433,49 @@ RuntimeValue* execute(AST* ast) {
 			exit(0);
 		}
 		return fetched_var;
+	} else if (ast->node_type == NODE_TYPE_WHILE_STATEMENT) {
+		WhileStatement* while_statement = (WhileStatement *)ast;
+		while (runtime_as_integer(execute(while_statement->condition))) {
+			execute(while_statement->statements);
+		}
+	} else if (ast->node_type == NODE_TYPE_FOR_STATEMENT) {
+		ForStatement* for_statement = (ForStatement *) ast;
+		RuntimeValue* start = execute(for_statement->dim);
+		RuntimeValue* until = execute(for_statement->until);
+		RuntimeValue* step = execute(for_statement->step);
+		int is_decimal_compute;
+		int i_val;
+		double d_val;
+		if (start->type == C_DECIMAL || until->type == C_DECIMAL || (step != NULL && step->type == C_DECIMAL)) {
+			is_decimal_compute = 1;
+			d_val = runtime_as_decimal(start);
+			start->type = C_DECIMAL;
+			start->d_val = d_val;
+		} else if (start->type == C_INT && until->type == C_INT && (step != NULL &&step->type == C_INT)) {
+			is_decimal_compute = 0;
+			i_val = runtime_as_integer(start);
+			start->type = C_INT;
+			start->i_val = i_val;
+		}
+		while (is_decimal_compute ? (
+				runtime_as_decimal(step) > 0 ? 
+					d_val <= runtime_as_decimal(until) : d_val >= runtime_as_decimal(until)
+			) :
+			(
+				runtime_as_integer(step) > 0 ?
+					i_val <= runtime_as_integer(until) : i_val >= runtime_as_integer(until)
+			)
+		) {
+			execute(for_statement->statements);
+			if (is_decimal_compute) {
+				d_val = d_val + runtime_as_decimal(step);
+				start->d_val = d_val;
+			} else {
+				i_val = i_val + runtime_as_integer(step);
+				start->i_val = i_val;
+			}
+		}
+		hash_delete(env->vars, ((Dimension*)(for_statement->dim))->var_name);
 	}
 }
 
@@ -443,5 +490,13 @@ ListBuffer* integrate_params(AST* node) {
 	} else {
 		return default_list;
 	}
+}
+
+AST* make_while_expression(AST* condition, AST* statements) {
+	WhileStatement* new_val = malloc(sizeof(WhileStatement) + 1);
+	new_val->node_type = NODE_TYPE_WHILE_STATEMENT;
+	new_val->condition = condition;
+	new_val->statements = statements;
+	return (AST*) new_val;
 }
 

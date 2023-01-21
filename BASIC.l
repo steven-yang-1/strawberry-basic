@@ -17,6 +17,7 @@ numeric	[0-9]+(\.[0-9]+)?
 var_name	[_A-Za-z0-9]+
 
 %%
+"rem".*	{}
 "dim"		{
 			return DIM;
 		}
@@ -43,6 +44,12 @@ var_name	[_A-Za-z0-9]+
 		}
 ")"		{
 			return ')';
+		}
+"bitand"	{
+			return BITAND;
+		}
+"bitor"	{
+			return BITOR;
 		}
 "and"		{
 			return '&';
@@ -79,6 +86,27 @@ var_name	[_A-Za-z0-9]+
 		}
 "end if"	{
 			return ENDIF;
+		}
+"while"	{
+			return WHILE;
+		}
+"end while"	{
+			return ENDWHILE;
+		}
+"for"		{
+			return FOR;
+		}
+"to"		{
+			return TO;
+		}
+"end for"	{
+			return ENDFOR;
+		}
+"step"		{
+			return STEP;
+		}
+"do"		{
+			return DO;
 		}
 "."		{
 			return '.';
