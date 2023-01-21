@@ -79,6 +79,8 @@ void list_buffer_free(ListBuffer* list_buffer) {
     list_buffer->count = 0;
     for (int i = 0; i < list_buffer->count; i++) {
         free(list_buffer->list[i]);
+        list_buffer->list[i] = NULL;
     }
     free(list_buffer->list);
+    list_buffer = NULL;
 }

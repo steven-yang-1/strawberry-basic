@@ -39,15 +39,23 @@ void list_add(LinkedList* list, void* value) {
 }
 
 void list_delete(LinkedList* list, int index) {
+    if (list->count == 0) {
+        return;
+    }
     LinkedListNode* pointer = list->head;
-    for (int count = 0; count < index - 1; count++) {
+    for (int count = 0; count <= index - 1; count++) {
         pointer = pointer->next_node;
     }
     LinkedListNode* current_node = pointer->next_node;
-    if (list->count == index - 1) {
-        list->tail = pointer;
+    if (list->count == 1) {
+        list->head->next_node = NULL;
+        list->tail = list->head;
+    } else {
+        pointer->next_node = pointer->next_node->next_node;
+        if (list->count == index - 1) {
+            list->tail = pointer;
+        }
     }
-    pointer->next_node = pointer->next_node->next_node;
     free(current_node->value);
     free(current_node);
     current_node = NULL;

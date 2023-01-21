@@ -46,7 +46,9 @@ void hash_put(HashTable* hash_table, char* key, void* value) {
         pointer_node = pointer_node->next_node;
     }
     if (exists) {
-        ((HashTableNode *) pointer_node)->value = value;
+        free(((HashTableNode *) pointer_node)->value);
+        ((HashTableNode *) pointer_node->value)->value = NULL;
+        ((HashTableNode *) pointer_node->value)->value = value;
     } else {
         list_add(list, new_node);
     }
@@ -76,7 +78,7 @@ void hash_delete(HashTable *hash_table, char* key) {
     for (int i = 0; i <= list->count; i++) {
         if (i > 0) {
             if (!strcmp(key, ((HashTableNode *) (pointer_node->value))->key)) {
-                index = i;
+                index = i - 1;
                 break;
             }
         }
@@ -117,4 +119,21 @@ void hash_dump(HashTable *hash_table) {
         }
     }
     printf(")\n");
+}
+
+int hash_has_key(HashTable *hash_table, char* key) {
+    int location = hash_key(key, hash_table->pool_size);
+    LinkedList* list = hash_table->container[location];
+    LinkedListNode* pointer_node = list->head;
+    int exists = 0;
+    for (int i = 0; i <= list->count; i++) {
+        if (i > 0) {
+            if (!strcmp(key, ((HashTableNode *) (pointer_node->value))->key)) {
+                exists = 1;
+                break;
+            }
+        }
+        pointer_node = pointer_node->next_node;
+    }
+    return exists;
 }

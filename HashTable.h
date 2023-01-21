@@ -21,6 +21,7 @@ void hash_put(HashTable *hash_table, char* key, void* value);
 void* hash_get(HashTable *hash_table, char* key);
 void hash_delete(HashTable *hash_table, char* key);
 void hash_free(HashTable *hash_table);
+int hash_has_key(HashTable *hash_table, char* key);
 
 void hash_dump(HashTable *hash_table);
 
