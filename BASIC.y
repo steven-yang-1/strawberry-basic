@@ -21,6 +21,8 @@
 %token IF ELSEIF ELSE ENDIF THEN
 %token WHILE ENDWHILE DO
 %token FOR TO DOWNTO STEP ENDFOR
+%token ASSIGN
+%token EQ
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -29,7 +31,7 @@
 %left '+' '-'
 %left '*' '/'
 
-%left DEFSTR;
+%left ASSIGN;
 
 %type <expr> _assignment;
 %type <expr> assignment;
@@ -102,7 +104,7 @@ else_statement:	{$$ = NULL;}
 while_statement:	WHILE expression _statements ENDWHILE					{
 													$$ = make_while_expression($2, $3);
 												};
-for_statement:		FOR VARIABLE_NAME DEFSTR expression TO expression for_step _statements ENDFOR {
+for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements ENDFOR {
 								Dimension* dim = make_dim($2, $4, NULL);
 								AST* step;
 								if ($7 == NULL) {
@@ -130,8 +132,8 @@ expression:	NUMBER					{
 								}
 								$$ = $2;
 							}
-	|	expression '=' '=' expression		{
-								$$ = make_ast(NODE_TYPE_EQ, $1, $4);
+	|	expression EQ expression		{
+								$$ = make_ast(NODE_TYPE_EQ, $1, $3);
 							}
 	|	expression BITAND expression		{
 								$$ = make_ast(NODE_TYPE_BITAND, $1, $3);
@@ -157,10 +159,10 @@ expression:	NUMBER					{
 	|	expression '>' expression		{
 								$$ = make_ast('>', $1, $3);
 							}
-	|	expression '<' DEFSTR expression	{
+	|	expression '<' ASSIGN expression	{
 								$$ = make_ast(NODE_TYPE_LTE, $1, $4);
 							}
-	|	expression '>' DEFSTR expression	{
+	|	expression '>' ASSIGN expression	{
 								$$ = make_ast(NODE_TYPE_GTE, $1, $4);
 							}
 	|	expression '$' expression		{
@@ -223,7 +225,7 @@ _expr_list:	expression				{
 assignment:						{
 								$$ = NULL;
 							}	
-	|	DEFSTR _assignment			{
+	|	ASSIGN _assignment			{
 								$$ = $2;
 							}
 	;

@@ -4,6 +4,17 @@ While i < 5
 	i = i + 1
 End While
 PrintLine("")
-For j = 10 To 0 Step -1
+For j = 10 To 0 Step -2
 	PrintLine(j)
 End For
+Dim a, b = 5
+If b < 4 Then
+	PrintLine("a")
+ElseIf b < 2 Then
+	PrintLine("D")
+ElseIf b == 5 Then
+	PrintLine("C")
+Else
+	PrintLine("b")
+End If
+PrintLine(a)

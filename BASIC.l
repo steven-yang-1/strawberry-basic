@@ -21,8 +21,11 @@ var_name	[_A-Za-z0-9]+
 "dim"		{
 			return DIM;
 		}
+"=="		{
+			return EQ;
+		}
 "="		{
-			return DEFSTR;
+			return ASSIGN;
 		}
 "+"		{
 			return '+';
