@@ -18,11 +18,14 @@
 #define NODE_TYPE_EXPR_ITEM 10010
 #define NODE_TYPE_FUNC 10012
 #define NODE_TYPE_VAR 10013
+#define NODE_TYPE_REASSIGN 10014
+#define NODE_TYPE_EQ 10015
 
 #define C_INT 0
 #define C_DECIMAL 1
 #define C_STRING 2
 #define C_LIST_BUFFER 3
+#define C_NULL 4
 
 
 typedef struct Var {
@@ -79,6 +82,14 @@ RuntimeValue* make_runtime_decimal(double d_val);
 
 RuntimeValue* make_runtime_string(char* s_val);
 
+RuntimeValue* make_runtime_null();
+
+typedef struct AST {
+	int node_type;
+	struct AST* left_node;
+	struct AST* right_node;
+} AST;
+
 typedef struct VariableBlock {
 	int node_type;
 	char* type;
@@ -86,20 +97,16 @@ typedef struct VariableBlock {
 	int i_val;
 	double d_val;
 	char* s_val;
+	AST* next_dim;
 } VariableBlock;
+
+VariableBlock* var_make_null(char* var_name);
 
 VariableBlock* var_make_int(char* var_name, int content);
 
 VariableBlock* var_make_decimal(char* var_name, double content);
 
 VariableBlock* var_make_string(char* var_name, char* content);
-
-
-typedef struct AST {
-	int node_type;
-	struct AST* left_node;
-	struct AST* right_node;
-} AST;
 
 typedef struct IfStatement {
 	int node_type;

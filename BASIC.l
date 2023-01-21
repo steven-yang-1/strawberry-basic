@@ -84,10 +84,12 @@ var_name	[_A-Za-z0-9]+
 			return '.';
 		}
 "true"		{
-			return 't';
+			yylval.expr = (AST*) make_ast_integer(1);
+			return NUMBER;
 		}
 "false"	{
-			return 'f';
+			yylval.expr = (AST*) make_ast_integer(0);
+			return NUMBER;
 		}
 {numeric}	{
 			double num = atof(yytext);

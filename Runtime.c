@@ -84,6 +84,16 @@ RuntimeValue* make_runtime_string(char* s_val) {
 	return new_val;
 }
 
+RuntimeValue* make_runtime_null() {
+	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
+	if (new_val == NULL) {
+		printf("System error");
+		exit(0);
+	}
+	new_val->type = C_NULL;
+	return new_val;
+}
+
 char* new_string(char* str) {
 	char* new_str = (char*) malloc(strlen(str) + 1);
 	strcpy(new_str, str);
@@ -122,12 +132,22 @@ double runtime_as_decimal(RuntimeValue* value) {
 	}
 }
 
+VariableBlock* var_make_null(char* var_name) {
+	VariableBlock* new_block = (VariableBlock*) malloc(sizeof(VariableBlock) + 1);
+	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
+	new_block->type = "null";
+	new_block->var_name = var_name;
+	new_block->next_dim = NULL;
+	return new_block;
+}
+
 VariableBlock* var_make_int(char* var_name, int content) {
 	VariableBlock* new_block = (VariableBlock*) malloc(sizeof(VariableBlock) + 1);
 	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
 	new_block->type = "integer";
 	new_block->var_name = var_name;
 	new_block->i_val = content;
+	new_block->next_dim = NULL;
 	return new_block;
 }
 
@@ -137,6 +157,7 @@ VariableBlock* var_make_decimal(char* var_name, double content) {
 	new_block->type = "decimal";
 	new_block->var_name = var_name;
 	new_block->d_val = content;
+	new_block->next_dim = NULL;
 	return new_block;
 }
 
@@ -147,6 +168,7 @@ VariableBlock* var_make_string(char* var_name, char* content) {
 	new_block->var_name = var_name;
 	new_block->s_val = malloc(sizeof(char) * strlen(content) + 1);
 	strcpy(new_block->s_val, content);
+	new_block->next_dim = NULL;
 	return new_block;
 }
 
@@ -177,28 +199,40 @@ AST* make_function_call(char* name, AST* expr_list) {
 	return (AST*) new_val;
 }
 
-/*
-void integrate_expr_list(ListBuffer* list, AST* expr_list) {
-	if (expr_list->left_node != NULL) {
-		list_buffer_add(list, expr_list->left_node);
-		integrate_expr_list(list, expr_list->left_node);
-	}
-	if (expr_list->right_node != NULL) {
-		list_buffer_add(list, expr_list->right_node);
-		integrate_expr_list(list, expr_list->right_node);
-	}
-}
-*/
-
 RuntimeValue* execute(AST* ast) {
 	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
 		VariableBlock* var_block = (VariableBlock*) ast;
+		if (hash_has_key(env->vars, var_block->var_name)) {
+			yyerror("Defined variable.");
+			exit(0);
+		}
 		if (!strcmp(var_block->type, "integer")) {
 			hash_put(env->vars, var_block->var_name, make_runtime_integer(var_block->i_val));
 		} else if (!strcmp(var_block->type, "decimal")) {
 			hash_put(env->vars, var_block->var_name, make_runtime_decimal(var_block->d_val));
 		} else if (!strcmp(var_block->type, "string")) {
 			hash_put(env->vars, var_block->var_name, make_runtime_string(var_block->s_val));
+		} else if (!strcmp(var_block->type, "null")) {
+			hash_put(env->vars, var_block->var_name, make_runtime_null());
+		}
+		if (var_block->next_dim != NULL) {
+			execute(var_block->next_dim);
+		}
+	} else if (ast->node_type == NODE_TYPE_REASSIGN) {
+		VariableBlock* var_block = (VariableBlock*) ast;
+		if (!hash_has_key(env->vars, var_block->var_name)) {
+			yyerror("Undefined variable.");
+			exit(0);
+		}
+		hash_delete(env->vars, var_block->var_name);
+		if (!strcmp(var_block->type, "integer")) {
+			hash_put(env->vars, var_block->var_name, make_runtime_integer(var_block->i_val));
+		} else if (!strcmp(var_block->type, "decimal")) {
+			hash_put(env->vars, var_block->var_name, make_runtime_decimal(var_block->d_val));
+		} else if (!strcmp(var_block->type, "string")) {
+			hash_put(env->vars, var_block->var_name, make_runtime_string(var_block->s_val));
+		} else if (!strcmp(var_block->type, "null")) {
+			hash_put(env->vars, var_block->var_name, make_runtime_null());
 		}
 	} else if (ast->node_type == NODE_TYPE_CONSTANT) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
@@ -222,7 +256,7 @@ RuntimeValue* execute(AST* ast) {
 				}
 				tmp_stat = tmp_stat->else_if_statement;
 			}
-			if (!flag1) {
+			if (!flag1 && if_statement->else_statement != NULL) {
 				execute(if_statement->else_statement);
 			}
 		}
@@ -261,7 +295,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) < runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) < runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '>') {
@@ -269,7 +303,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) > runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) > runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '$') {
@@ -279,7 +313,7 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(!strcmp(l->s_val, r->s_val));
 		} else if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) != runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) != runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '+') {
@@ -289,7 +323,7 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_string(strcat(l->s_val, r->s_val));
 		} else if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) + runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) + runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '-') {
@@ -297,7 +331,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) - runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) - runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '*') {
@@ -305,7 +339,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) * runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) * runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '/') {
@@ -313,11 +347,11 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (runtime_as_decimal(r) == 0.0) {
 			yyerror("Divided by 0!");
-			return NULL;
+			exit(0);
 		}
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) / runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) / runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_GTE) {
@@ -325,7 +359,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) >= runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) >= runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_LTE) {
@@ -333,7 +367,15 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) <= runtime_as_decimal(r));
-		} else {
+		} else if (l->type == C_INT && r->type == C_INT) {
+			return make_runtime_integer(runtime_as_integer(l) <= runtime_as_integer(r));
+		}
+	} else if (ast->node_type == NODE_TYPE_EQ) {
+		RuntimeValue* l = execute(ast->left_node);
+		RuntimeValue* r= execute(ast->right_node);
+		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+			return make_runtime_integer(runtime_as_decimal(l) <= runtime_as_decimal(r));
+		} else if (l->type == C_INT && r->type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) <= runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_MOD) {
@@ -341,7 +383,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (runtime_as_decimal(r) == 0.0) {
 			yyerror("Modulo by 0!");
-			return NULL;
+			exit(0);
 		}
 		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) / runtime_as_decimal(r));
@@ -359,6 +401,19 @@ RuntimeValue* execute(AST* ast) {
 				printf("%d", param1->i_val);
 			} else if (param1->type == C_DECIMAL) {
 				printf("%f", param1->d_val);
+			} else if (param1->type == C_NULL) {
+				printf("NULL");
+			}
+		} else if (!strcmp(functional->name, "PrintLine")) {
+			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
+			if (param1->type == C_STRING) {
+				printf("%s\n", param1->s_val);
+			} else if (param1->type == C_INT) {
+				printf("%d\n", param1->i_val);
+			} else if (param1->type == C_DECIMAL) {
+				printf("%f\n", param1->d_val);
+			} else if (param1->type == C_NULL) {
+				printf("NULL\n");
 			}
 		}
 	} else if (ast->node_type == NODE_TYPE_EXPR_ITEM) {
@@ -371,7 +426,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* fetched_var = hash_get(env->vars, var->name);
 		if (fetched_var == NULL) {
 			yyerror("Undefined variable.");
-			return;
+			exit(0);
 		}
 		return fetched_var;
 	}

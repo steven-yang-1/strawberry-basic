@@ -1,13 +1,30 @@
-Dim a = 6
-Dim b = 3
+Dim a = 6, b = 3
 Dim c = "TEST"
 Dim d = "Concat"
-Print(a * 6 + (2+3) * b)
-Print(c + d)
+Dim e, kae, eee = 6
+a = 7
+
+PrintLine(a)
+PrintLine(b)
+PrintLine(e)
+
 If a < b Then
-	Print("Yes")
+	PrintLine("Yes")
+ElseIf a > 3 Then
+	PrintLine("La")
 ElseIf a < 4 Then
-	Print("Hi")
+	PrintLine("Hi")
 Else
-	Print("No")
+	PrintLine("No")
+	PrintLine("Second Time")
+End If
+
+If a > 10 Then
+	PrintLine("Equal")
+End If
+
+If True Then
+	PrintLine("Equal")
+ElseIf a < 11 Then
+	PrintLine("EE")
 End If
