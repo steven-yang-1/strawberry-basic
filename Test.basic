@@ -18,3 +18,11 @@ Else
 	PrintLine("b")
 End If
 PrintLine(a)
+PrintLine("")
+PrintLine("")
+i = 0
+Do
+	PrintLine(i)
+	i = i + 1
+Loop While i < 10
+

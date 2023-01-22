@@ -111,6 +111,9 @@ var_name	[_A-Za-z0-9]+
 "do"		{
 			return DO;
 		}
+"loop"		{
+			return LOOP;
+		}
 "."		{
 			return '.';
 		}

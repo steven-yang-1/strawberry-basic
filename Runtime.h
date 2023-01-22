@@ -24,6 +24,7 @@
 #define NODE_TYPE_BITOR 10017
 #define NODE_TYPE_WHILE_STATEMENT 10018
 #define NODE_TYPE_FOR_STATEMENT 10019
+#define NODE_TYPE_DO_LOOP_STATEMENT 10020
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -137,6 +138,14 @@ typedef struct WhileStatement {
 } WhileStatement;
 
 AST* make_while_expression(AST* condition, AST* statements);
+
+typedef struct DoLoopStatement {
+	int node_type;
+	AST* condition;
+	AST* statements;
+} DoLoopStatement;
+
+AST* make_do_loop_expression(AST* statements, AST* condition);
 
 typedef struct ForStatement {
 	int node_type;

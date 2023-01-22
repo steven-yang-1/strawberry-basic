@@ -19,7 +19,7 @@
 %token DIM
 %token BITAND BITOR
 %token IF ELSEIF ELSE ENDIF THEN
-%token WHILE ENDWHILE DO
+%token WHILE ENDWHILE DO LOOP
 %token FOR TO DOWNTO STEP ENDFOR
 %token ASSIGN
 %token EQ
@@ -49,6 +49,7 @@
 %type <expr> while_statement
 %type <expr> for_statement
 %type <expr> for_step
+%type <expr> do_loop_statement
 
 %%
 statements:	{$$ = NULL;}|_statements		{
@@ -69,6 +70,9 @@ statement:	VARIABLE_NAME assignment		{
 								$$ = $1;
 							}
 	|	while_statement			{
+								$$ = $1;
+							}
+	|	do_loop_statement			{
 								$$ = $1;
 							}
 	|	for_statement				{
@@ -104,6 +108,9 @@ else_statement:	{$$ = NULL;}
 while_statement:	WHILE expression _statements ENDWHILE					{
 													$$ = make_while_expression($2, $3);
 												};
+do_loop_statement:	DO _statements LOOP WHILE expression		{
+										$$ = make_do_loop_expression($2, $5);
+									};
 for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements ENDFOR {
 								Dimension* dim = make_dim($2, $4, NULL);
 								AST* step;

@@ -438,6 +438,11 @@ RuntimeValue* execute(AST* ast) {
 		while (runtime_as_integer(execute(while_statement->condition))) {
 			execute(while_statement->statements);
 		}
+	} else if (ast->node_type == NODE_TYPE_DO_LOOP_STATEMENT) {
+		DoLoopStatement* do_loop_statement = (DoLoopStatement *)ast;
+		do {
+			execute(do_loop_statement->statements);
+		} while (runtime_as_integer(execute(do_loop_statement->condition)));
 	} else if (ast->node_type == NODE_TYPE_FOR_STATEMENT) {
 		ForStatement* for_statement = (ForStatement *) ast;
 		RuntimeValue* start = execute(for_statement->dim);
@@ -495,6 +500,14 @@ ListBuffer* integrate_params(AST* node) {
 AST* make_while_expression(AST* condition, AST* statements) {
 	WhileStatement* new_val = malloc(sizeof(WhileStatement) + 1);
 	new_val->node_type = NODE_TYPE_WHILE_STATEMENT;
+	new_val->condition = condition;
+	new_val->statements = statements;
+	return (AST*) new_val;
+}
+
+AST* make_do_loop_expression(AST* statements, AST* condition) {
+	DoLoopStatement* new_val = malloc(sizeof(DoLoopStatement) + 1);
+	new_val->node_type = NODE_TYPE_DO_LOOP_STATEMENT;
 	new_val->condition = condition;
 	new_val->statements = statements;
 	return (AST*) new_val;
