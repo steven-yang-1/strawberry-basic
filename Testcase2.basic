@@ -1,0 +1,19 @@
+Dim i = 0
+
+Sub Process1
+	Dim i = 5
+	Return i == 5
+End Sub
+
+Sub Process2
+	Dim i = 12
+	Return i == 12
+End Sub
+
+Sub Process3
+	Return i == 0
+End Sub
+
+PrintLine(Process1())
+PrintLine(Process2())
+PrintLine(Process3())

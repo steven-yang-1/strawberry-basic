@@ -7,10 +7,15 @@ While i < 10
 	End If
 	i = i + 1
 End While
-PrintLine("test")
+
+PrintLine("")
+
 For j = 10 To 0 Step -2
 	PrintLine(j)
 End For
+
+PrintLine("")
+
 Dim a, b = 5
 If b < 4 Then
 	PrintLine("a")
@@ -21,9 +26,11 @@ ElseIf b == 5 Then
 Else
 	PrintLine("b")
 End If
+
 PrintLine(a)
 PrintLine("")
 PrintLine("")
+
 i = 0
 Do
 	PrintLine(i)
@@ -32,4 +39,5 @@ Do
 	End If
 	i = i + 1
 Loop While i < 10
+
 PrintLine("")

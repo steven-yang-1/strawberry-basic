@@ -236,6 +236,7 @@ FunctionStackElement* dup_new_func_stack_element() {
 	}
 	HashTable* new_table = malloc(sizeof(HashTable) + 1);
 	new_table = hash_init(var_env_pt->pool_size);
+	/*
 	for (int i = 0; i < var_env_pt->count; i++) {
 		hash_put(
 			new_table,
@@ -243,6 +244,7 @@ FunctionStackElement* dup_new_func_stack_element() {
 			hash_get(var_env_pt, (char*)list_buffer_get(var_env_pt->name_list, i))
 		);
 	}
+	*/
 	new_val->local_vars = new_table;
 	return new_val;
 }
@@ -277,22 +279,42 @@ AST* make_continue() {
 RuntimeValue* execute(AST* ast) {
 	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
 		Dimension* dim = (Dimension*) ast;
-		if (hash_has_key(env->vars, dim->var_name)) {
+		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+		if (peak == NULL && hash_has_key(env->vars, dim->var_name)) {
+			yyerror("Defined variable.");
+			exit(0);
+		}
+		if (peak != NULL && hash_has_key(peak->local_vars, dim->var_name)) {
 			yyerror("Defined variable.");
 			exit(0);
 		}
 		RuntimeValue* value = NULL;
-		if (dim->node != NULL) {
-			value = execute(dim->node);
-			hash_put(env->vars, dim->var_name, value);
+		if (peak == NULL) {
+			if (dim->node != NULL) {
+				value = execute(dim->node);
+				hash_put(env->vars, dim->var_name, value);
+			} else {
+				hash_put(env->vars, dim->var_name, make_runtime_null());
+			}
+			if (dim->next_dim != NULL) {
+				execute(dim->next_dim);
+			}
+			if (value != NULL) {
+				return value;
+			}
 		} else {
-			hash_put(env->vars, dim->var_name, make_runtime_null());
-		}
-		if (dim->next_dim != NULL) {
-			execute(dim->next_dim);
-		}
-		if (value != NULL) {
-			return value;
+			if (dim->node != NULL) {
+				value = execute(dim->node);
+				hash_put(peak->local_vars, dim->var_name, value);
+			} else {
+				hash_put(peak->local_vars, dim->var_name, make_runtime_null());
+			}
+			if (dim->next_dim != NULL) {
+				execute(dim->next_dim);
+			}
+			if (value != NULL) {
+				return value;
+			}
 		}
 	} else if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE) {
 		FunctionDefineStatement* function_statement = (FunctionDefineStatement*) ast;
@@ -309,14 +331,27 @@ RuntimeValue* execute(AST* ast) {
 		hash_put(env->functions, func->name, (void*) func);
 	} else if (ast->node_type == NODE_TYPE_REASSIGN) {
 		Dimension* dim = (Dimension*) ast;
-		if (!hash_has_key(env->vars, dim->var_name)) {
+		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+		if (peak == NULL && !hash_has_key(env->vars, dim->var_name)) {
 			yyerror("Undefined variable.");
 			exit(0);
 		}
-		if (dim->node != NULL) {
-			hash_put(env->vars, dim->var_name, execute(dim->node));
+		if (peak != NULL && !hash_has_key(peak->local_vars, dim->var_name)) {
+			yyerror("Undefined variable.");
+			exit(0);
+		}
+		if (peak == NULL) {
+			if (dim->node != NULL) {
+				hash_put(env->vars, dim->var_name, execute(dim->node));
+			} else {
+				hash_put(env->vars, dim->var_name, make_runtime_null());
+			}
 		} else {
-			hash_put(env->vars, dim->var_name, make_runtime_null());
+			if (dim->node != NULL) {
+				hash_put(peak->local_vars, dim->var_name, execute(dim->node));
+			} else {
+				hash_put(peak->local_vars, dim->var_name, make_runtime_null());
+			}
 		}
 	} else if (ast->node_type == NODE_TYPE_CONSTANT) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
@@ -533,6 +568,7 @@ RuntimeValue* execute(AST* ast) {
 			}
 			RuntimeValue* return_value = execute(runtime_function->statements);
 			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
+			/*
 			FunctionStackElement* up_env = (FunctionStackElement*) stack_peak(env->call_stack);
 			HashTable* up_env_hash;
 			if (up_env == NULL) {
@@ -545,6 +581,7 @@ RuntimeValue* execute(AST* ast) {
 				RuntimeValue* value = hash_get(popped_env, var_name);
 				hash_put(up_env_hash, var_name, value);
 			}
+			*/
 			return return_value;
 		}
 	} else if (ast->node_type == NODE_TYPE_EXPR_ITEM) {
@@ -554,7 +591,17 @@ RuntimeValue* execute(AST* ast) {
 		return value;
 	} else if (ast->node_type == NODE_TYPE_VAR) {
 		Var* var = (Var*)ast;
-		RuntimeValue* fetched_var = hash_get(env->vars, var->name);
+		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+		HashTable* from_env;
+		if (peak == NULL) {
+			from_env = env->vars;
+		} else {
+			from_env = peak->local_vars;
+		}
+		RuntimeValue* fetched_var = hash_get(from_env, var->name);
+		if (peak != NULL && fetched_var == NULL) {
+			fetched_var = hash_get(env->vars, var->name);
+		}
 		if (fetched_var == NULL) {
 			yyerror("Undefined variable.");
 			exit(0);
