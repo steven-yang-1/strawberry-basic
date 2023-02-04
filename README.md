@@ -1,7 +1,7 @@
 ## **StrawberryBASIC**
 ver 0.01a3
 
-![StrawberryBASIC]https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png
+![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
 原创BASIC方言和解释器
 
