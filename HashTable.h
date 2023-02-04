@@ -2,6 +2,7 @@
 #define HASHTABLE_H
 
 #include "LinkedList.h"
+#include "ListBuffer.h"
 
 typedef struct HashTableNode {
     char* key;
@@ -12,6 +13,7 @@ typedef struct HashTable {
     int count;
     int pool_size;
     LinkedList** container;
+    ListBuffer* name_list;
 } HashTable;
 
 int hash_key(char* key, int factor);

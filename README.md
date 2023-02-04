@@ -1,10 +1,10 @@
 ## **StrawberryBASIC**
-ver 0.01a
+ver 0.01a2
 
 原创BASIC解释器
 
 已经实现了基本表达式、赋值、If-ElseIf-Else语句、While循环、Do-Loop循环、For循环
-以及运行时虚拟机
+Break语句、Continue语句、Sub定义过程
 
 
 安装方法（Ubuntu）：

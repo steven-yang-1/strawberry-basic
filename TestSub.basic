@@ -1,0 +1,6 @@
+Sub Add
+	Dim i = 5
+	Return i == 5
+End Sub
+
+PrintLine(Add())

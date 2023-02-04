@@ -1,9 +1,13 @@
 Dim i = 0
-While i < 5
+While i < 10
 	PrintLine(i)
+	If i == 3 Then
+		i = i + 2
+		Continue
+	End If
 	i = i + 1
 End While
-PrintLine("")
+PrintLine("test")
 For j = 10 To 0 Step -2
 	PrintLine(j)
 End For
@@ -23,6 +27,9 @@ PrintLine("")
 i = 0
 Do
 	PrintLine(i)
+	If i == 3 Then
+		Break
+	End If
 	i = i + 1
 Loop While i < 10
-
+PrintLine("")

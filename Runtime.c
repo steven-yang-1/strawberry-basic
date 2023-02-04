@@ -51,12 +51,12 @@ Constant* make_ast_string(char* s_val) {
 }
 
 RuntimeValue* make_runtime_integer(int i_val) {
-	RuntimeValue* new_val = malloc(sizeof(RuntimeValue) + 1);
+	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
 	if (new_val == NULL) {
 		printf("System error");
 		exit(0);
 	}
-	new_val->type = C_INT;
+	new_val->runtime_type = C_INT;
 	new_val->i_val = i_val;
 	return new_val;
 }
@@ -67,7 +67,7 @@ RuntimeValue* make_runtime_decimal(double d_val) {
 		printf("System error");
 		exit(0);
 	}
-	new_val->type = C_DECIMAL;
+	new_val->runtime_type = C_DECIMAL;
 	new_val->d_val = d_val;
 	return new_val;
 }
@@ -78,7 +78,7 @@ RuntimeValue* make_runtime_string(char* s_val) {
 		printf("System error");
 		exit(0);
 	}
-	new_val->type = C_STRING;
+	new_val->runtime_type = C_STRING;
 	new_val->s_val = (char *) malloc(sizeof(char) * strlen(s_val) + 1);
 	strcpy(new_val->s_val, s_val);
 	return new_val;
@@ -90,7 +90,27 @@ RuntimeValue* make_runtime_null() {
 		printf("System error");
 		exit(0);
 	}
-	new_val->type = C_NULL;
+	new_val->runtime_type = C_NULL;
+	return new_val;
+}
+
+RuntimeValue* make_runtime_break() {
+	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
+	if (new_val == NULL) {
+		printf("System error");
+		exit(0);
+	}
+	new_val->runtime_type = C_BREAK;
+	return new_val;
+}
+
+RuntimeValue* make_runtime_continue() {
+	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
+	if (new_val == NULL) {
+		printf("System error");
+		exit(0);
+	}
+	new_val->runtime_type = C_CONTINUE;
 	return new_val;
 }
 
@@ -117,17 +137,17 @@ double dump_numeric_as_decimal(Constant* constant) {
 }
 
 int runtime_as_integer(RuntimeValue* value) {
-	if (value->type == C_INT) {
+	if (value->runtime_type == C_INT) {
 		return value->i_val;
-	} else if (value->type == C_DECIMAL) {
+	} else if (value->runtime_type == C_DECIMAL) {
 		return (int)(value->d_val);
 	}
 }
 
 double runtime_as_decimal(RuntimeValue* value) {
-	if (value->type == C_INT) {
+	if (value->runtime_type == C_INT) {
 		return (double)(value->i_val);
-	} else if (value->type == C_DECIMAL) {
+	} else if (value->runtime_type == C_DECIMAL) {
 		return value->d_val;
 	}
 }
@@ -135,7 +155,7 @@ double runtime_as_decimal(RuntimeValue* value) {
 Dimension* var_make_null(char* var_name) {
 	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
 	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
-	//new_block->type = "null";
+	//new_block->runtime_type = "null";
 	new_block->var_name = var_name;
 	new_block->next_dim = NULL;
 	return new_block;
@@ -195,6 +215,65 @@ AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements) {
 	return (AST*) new_val;
 }
 
+AST* make_function_define(char* name, AST* statements, AST* arguments) {
+	FunctionDefineStatement* new_val = malloc(sizeof(FunctionDefineStatement) + 1);
+	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
+	strcpy(new_val->name, name);
+	new_val->node_type = NODE_TYPE_FUNCTION_DEFINE;
+	new_val->statements = statements;
+	new_val->arguments = arguments;
+	return (AST*) new_val;
+}
+
+FunctionStackElement* dup_new_func_stack_element() {
+	FunctionStackElement* new_val = malloc(sizeof(FunctionStackElement) + 1);
+	FunctionStackElement* peak = stack_peak(env->call_stack);
+	HashTable* var_env_pt;
+	if (peak == NULL) {
+		var_env_pt = env->vars;
+	} else {
+		var_env_pt = peak;
+	}
+	HashTable* new_table = malloc(sizeof(HashTable) + 1);
+	new_table = hash_init(var_env_pt->pool_size);
+	for (int i = 0; i < var_env_pt->count; i++) {
+		hash_put(
+			new_table,
+			(char*)list_buffer_get(var_env_pt->name_list, i),
+			hash_get(var_env_pt, (char*)list_buffer_get(var_env_pt->name_list, i))
+		);
+	}
+	new_val->local_vars = new_table;
+	return new_val;
+}
+
+AST* make_return(AST* expr) {
+	ReturnStatement* new_val = malloc(sizeof(ReturnStatement) + 1);
+	new_val->node_type = NODE_TYPE_RETURN;
+	new_val->return_expr = expr;
+	return (AST*) new_val;
+}
+
+AST* make_break() {
+	BreakStatement* new_val = malloc(sizeof(BreakStatement) + 1);
+	if (new_val == NULL) {
+		yyerror("System error.");
+		exit(0);
+	}
+	new_val->node_type = NODE_TYPE_BREAK;
+	return (AST*) new_val;
+}
+
+AST* make_continue() {
+	ContinueStatement* new_val = malloc(sizeof(ContinueStatement) + 1);
+	if (new_val == NULL) {
+		yyerror("System error.");
+		exit(0);
+	}
+	new_val->node_type = NODE_TYPE_CONTINUE;
+	return (AST*) new_val;
+}
+
 RuntimeValue* execute(AST* ast) {
 	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
 		Dimension* dim = (Dimension*) ast;
@@ -215,6 +294,19 @@ RuntimeValue* execute(AST* ast) {
 		if (value != NULL) {
 			return value;
 		}
+	} else if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE) {
+		FunctionDefineStatement* function_statement = (FunctionDefineStatement*) ast;
+		RuntimeFunction* func = malloc(sizeof(RuntimeFunction) + 1);
+		func->type = C_FUNCTION_DEFINE;
+		func->name = malloc(sizeof(char) * strlen(function_statement->name) + 1);
+		strcpy(func->name, function_statement->name);
+		func->statements = function_statement->statements;
+		func->arguments = list_buffer_init();
+		if (hash_has_key(env->functions, func->name)) {
+			yyerror("You cannot redefine a function or sub-program.");
+			exit(0);
+		}
+		hash_put(env->functions, func->name, (void*) func);
 	} else if (ast->node_type == NODE_TYPE_REASSIGN) {
 		Dimension* dim = (Dimension*) ast;
 		if (!hash_has_key(env->vars, dim->var_name)) {
@@ -228,61 +320,72 @@ RuntimeValue* execute(AST* ast) {
 		}
 	} else if (ast->node_type == NODE_TYPE_CONSTANT) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
-		value->type = ((Constant *)ast)->type;
+		value->runtime_type = ((Constant *)ast)->type;
 		value->i_val = ((Constant *)ast)->i_val;
 		value->d_val = ((Constant *)ast)->d_val;
 		value->s_val = ((Constant *)ast)->s_val;
 		return value;
 	} else if (ast->node_type == NODE_TYPE_IF_STATEMENT) {
 		IfStatement* if_statement = (IfStatement *) ast;
-		if (runtime_as_integer(execute(if_statement->condition))) {
-			execute(if_statement->if_statement);
+		RuntimeValue* eval_if = execute(if_statement->condition);
+		if (runtime_as_integer(eval_if)) {
+			RuntimeValue* eval_if_statement = execute(if_statement->if_statement);
+			return eval_if_statement;
 		} else {
 			IfStatement* tmp_stat = if_statement->else_if_statement;
-			int flag1 = 0;
-			while (tmp_stat != NULL) {
-				if (runtime_as_integer(execute(tmp_stat->condition))) {
-					execute(tmp_stat->if_statement);
-					flag1 = 1;
-					break;
+			if (if_statement->else_if_statement != NULL) {
+				while (tmp_stat != NULL) {
+					if (runtime_as_integer(execute(tmp_stat->condition))) {
+						return execute(tmp_stat->if_statement);
+					}
+					tmp_stat = tmp_stat->else_if_statement;
 				}
-				tmp_stat = tmp_stat->else_if_statement;
 			}
-			if (!flag1 && if_statement->else_statement != NULL) {
-				execute(if_statement->else_statement);
+			if (if_statement->else_statement != NULL) {
+				return execute(if_statement->else_statement);
 			}
 		}
 	} else if (ast->node_type == NODE_TYPE_ELSE) {
-		execute(ast->left_node);
+		return execute(ast->left_node);
 	} else if (ast->node_type == NODE_TYPE_PRIORITY) {
 		return execute(ast->left_node);
 	} else if (ast->node_type == NODE_TYPE_STATEMENT) {
-		execute(ast->left_node);
-		if (ast->right_node != NULL) {
-			execute(ast->right_node);
+		if (ast->left_node == NULL && ast->right_node == NULL) {
+		} else {
+			RuntimeValue* left_result = execute(ast->left_node);
+			if (left_result != NULL) {
+				if (left_result->runtime_type == C_BREAK || left_result->runtime_type == C_CONTINUE) {
+					return left_result;
+				}
+			}
+			if (ast->right_node != NULL) {
+				RuntimeValue* right_result = execute(ast->right_node);
+				return right_result;
+			}
+			return left_result;
 		}
 	} else if (ast->node_type == '&') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_INT && r->type == C_INT) {
+		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) && runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_BITAND) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_INT && r->type == C_INT) {
+		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) & runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_BITOR) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_INT && r->type == C_INT) {
+		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) | runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '|') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_INT && r->type == C_INT) {
+		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) || runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '!') {
@@ -291,59 +394,59 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == '^') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_INT && r->type == C_INT) {
+		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) ^ runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '<') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) < runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) < runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '>') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) > runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) > runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '$') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_STRING && r->type == C_STRING) {
+		if (l->runtime_type == C_STRING && r->runtime_type == C_STRING) {
 			return make_runtime_integer(!strcmp(l->s_val, r->s_val));
-		} else if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		} else if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) != runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) != runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '+') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_STRING && r->type == C_STRING) {
+		if (l->runtime_type == C_STRING && r->runtime_type == C_STRING) {
 			return make_runtime_string(strcat(l->s_val, r->s_val));
-		} else if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		} else if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) + runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) + runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '-') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) - runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) - runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '*') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) * runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) * runtime_as_integer(r));
 		}
 	} else if (ast->node_type == '/') {
@@ -353,34 +456,34 @@ RuntimeValue* execute(AST* ast) {
 			yyerror("Divided by 0!");
 			exit(0);
 		}
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) / runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) / runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_GTE) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) >= runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) >= runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_LTE) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) <= runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) <= runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_EQ) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
-			return make_runtime_integer(runtime_as_decimal(l) <= runtime_as_decimal(r));
-		} else if (l->type == C_INT && r->type == C_INT) {
-			return make_runtime_integer(runtime_as_integer(l) <= runtime_as_integer(r));
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
+			return make_runtime_integer(runtime_as_decimal(l) == runtime_as_decimal(r));
+		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
+			return make_runtime_integer(runtime_as_integer(l) == runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_MOD) {
 		RuntimeValue* l = execute(ast->left_node);
@@ -389,7 +492,7 @@ RuntimeValue* execute(AST* ast) {
 			yyerror("Modulo by 0!");
 			exit(0);
 		}
-		if (l->type == C_DECIMAL || r->type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) / runtime_as_decimal(r));
 		} else {
 			return make_runtime_integer(runtime_as_integer(l) / runtime_as_integer(r));
@@ -399,30 +502,54 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* argument_list = execute(functional->expr_list);
 		if (!strcmp(functional->name, "Print")) {
 			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
-			if (param1->type == C_STRING) {
+			if (param1->runtime_type == C_STRING) {
 				printf("%s", param1->s_val);
-			} else if (param1->type == C_INT) {
+			} else if (param1->runtime_type == C_INT) {
 				printf("%d", param1->i_val);
-			} else if (param1->type == C_DECIMAL) {
+			} else if (param1->runtime_type == C_DECIMAL) {
 				printf("%f", param1->d_val);
-			} else if (param1->type == C_NULL) {
+			} else if (param1->runtime_type == C_NULL) {
 				printf("NULL");
 			}
+			return NULL;
 		} else if (!strcmp(functional->name, "PrintLine")) {
 			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
-			if (param1->type == C_STRING) {
+			if (param1->runtime_type == C_STRING) {
 				printf("%s\n", param1->s_val);
-			} else if (param1->type == C_INT) {
+			} else if (param1->runtime_type == C_INT) {
 				printf("%d\n", param1->i_val);
-			} else if (param1->type == C_DECIMAL) {
+			} else if (param1->runtime_type == C_DECIMAL) {
 				printf("%f\n", param1->d_val);
-			} else if (param1->type == C_NULL) {
+			} else if (param1->runtime_type == C_NULL) {
 				printf("NULL\n");
 			}
+			return NULL;
+		} else {
+			stack_push(env->call_stack, dup_new_func_stack_element());
+			RuntimeFunction* runtime_function = (RuntimeFunction*) hash_get(env->functions, functional->name);
+			if (runtime_function == NULL) {
+				yyerror("The function or sub-program which you're finding does not defined.");
+				exit(0);
+			}
+			RuntimeValue* return_value = execute(runtime_function->statements);
+			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
+			FunctionStackElement* up_env = (FunctionStackElement*) stack_peak(env->call_stack);
+			HashTable* up_env_hash;
+			if (up_env == NULL) {
+				up_env_hash = env->vars;
+			} else {
+				up_env_hash = up_env;
+			}
+			for (int i = 0; i < popped_env->local_vars->name_list->count; i++) {
+				char* var_name = (char*) list_buffer_get(popped_env->local_vars->name_list, i);
+				RuntimeValue* value = hash_get(popped_env, var_name);
+				hash_put(up_env_hash, var_name, value);
+			}
+			return return_value;
 		}
 	} else if (ast->node_type == NODE_TYPE_EXPR_ITEM) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
-		value->type = C_LIST_BUFFER;
+		value->runtime_type = C_LIST_BUFFER;
 		value->list = integrate_params(ast);
 		return value;
 	} else if (ast->node_type == NODE_TYPE_VAR) {
@@ -436,12 +563,26 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == NODE_TYPE_WHILE_STATEMENT) {
 		WhileStatement* while_statement = (WhileStatement *)ast;
 		while (runtime_as_integer(execute(while_statement->condition))) {
-			execute(while_statement->statements);
+			RuntimeValue* loop_val = execute(while_statement->statements);
+			if (loop_val != NULL) {
+				if (loop_val->runtime_type == C_BREAK) {
+					break;
+				} else if (loop_val->runtime_type == C_CONTINUE) {
+					continue;
+				}
+			}
 		}
 	} else if (ast->node_type == NODE_TYPE_DO_LOOP_STATEMENT) {
 		DoLoopStatement* do_loop_statement = (DoLoopStatement *)ast;
 		do {
-			execute(do_loop_statement->statements);
+			RuntimeValue* fin_val = execute(do_loop_statement->statements);
+			if (fin_val != NULL) {
+				if (fin_val->runtime_type == C_BREAK) {
+					break;
+				} else if (fin_val->runtime_type == C_CONTINUE) {
+					continue;
+				}
+			}
 		} while (runtime_as_integer(execute(do_loop_statement->condition)));
 	} else if (ast->node_type == NODE_TYPE_FOR_STATEMENT) {
 		ForStatement* for_statement = (ForStatement *) ast;
@@ -451,15 +592,15 @@ RuntimeValue* execute(AST* ast) {
 		int is_decimal_compute;
 		int i_val;
 		double d_val;
-		if (start->type == C_DECIMAL || until->type == C_DECIMAL || (step != NULL && step->type == C_DECIMAL)) {
+		if (start->runtime_type == C_DECIMAL || until->runtime_type == C_DECIMAL || (step != NULL && step->runtime_type == C_DECIMAL)) {
 			is_decimal_compute = 1;
 			d_val = runtime_as_decimal(start);
-			start->type = C_DECIMAL;
+			start->runtime_type = C_DECIMAL;
 			start->d_val = d_val;
-		} else if (start->type == C_INT && until->type == C_INT && (step != NULL &&step->type == C_INT)) {
+		} else if (start->runtime_type == C_INT && until->runtime_type == C_INT && (step != NULL &&step->runtime_type == C_INT)) {
 			is_decimal_compute = 0;
 			i_val = runtime_as_integer(start);
-			start->type = C_INT;
+			start->runtime_type = C_INT;
 			start->i_val = i_val;
 		}
 		while (is_decimal_compute ? (
@@ -471,7 +612,14 @@ RuntimeValue* execute(AST* ast) {
 					i_val <= runtime_as_integer(until) : i_val >= runtime_as_integer(until)
 			)
 		) {
-			execute(for_statement->statements);
+			RuntimeValue* finally_return = execute(for_statement->statements);
+			if (finally_return != NULL) {
+				if (finally_return->runtime_type == C_BREAK) {
+					break;
+				} else if (finally_return->runtime_type == C_CONTINUE) {
+					continue;
+				}
+			}
 			if (is_decimal_compute) {
 				d_val = d_val + runtime_as_decimal(step);
 				start->d_val = d_val;
@@ -480,14 +628,31 @@ RuntimeValue* execute(AST* ast) {
 				start->i_val = i_val;
 			}
 		}
-		hash_delete(env->vars, ((Dimension*)(for_statement->dim))->var_name);
+		//hash_delete(env->vars, ((Dimension*)(for_statement->dim))->var_name);
+	} else if (ast->node_type == NODE_TYPE_RETURN) {
+		if (stack_peak(env->call_stack) == NULL) {
+			yyerror("Cannot return value on the top level.");
+			exit(0);
+		}
+		ReturnStatement* return_statement = (ReturnStatement*) ast;
+		RuntimeValue* returned_value = execute(return_statement->return_expr);
+		return returned_value;
+	} else if (ast->node_type == NODE_TYPE_BREAK) {
+		return make_runtime_break();
+	} else if (ast->node_type == NODE_TYPE_CONTINUE) {
+		return make_runtime_continue();
 	}
+	return NULL;
 }
 
 ListBuffer* integrate_params(AST* node) {
 	ListBuffer* default_list = list_buffer_init();
-	RuntimeValue* param1 = execute(node->left_node);
-	list_buffer_add(default_list, param1);
+	if (node->left_node != NULL) {
+		RuntimeValue* param1 = execute(node->left_node);
+		list_buffer_add(default_list, param1);
+	} else {
+		return default_list;
+	}
 	if (node->right_node != NULL) {
 		ListBuffer* param_list_2 = integrate_params(node->right_node);	
 		list_buffer_concat(default_list, param_list_2);

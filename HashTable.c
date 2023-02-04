@@ -22,6 +22,7 @@ HashTable* hash_init(int pool_size) {
         for (int i = 0; i < pool_size; i++) {
             hash_table->container[i] = list_init();
         }
+        hash_table->name_list = list_buffer_init();
         return hash_table;
     }
     return NULL;
@@ -53,6 +54,7 @@ void hash_put(HashTable* hash_table, char* key, void* value) {
         list_add(list, new_node);
     }
     hash_table->count++;
+    list_buffer_add(hash_table->name_list, key);
 }
 
 void* hash_get(HashTable *hash_table, char* key) {
@@ -88,6 +90,11 @@ void hash_delete(HashTable *hash_table, char* key) {
         list_delete(list, index);
     }
     hash_table->count--;
+    for (int i = 0; i <= hash_table->count; i++) {
+        if (!strcmp((char *) list_buffer_get(hash_table->name_list, i), key)) {
+            list_buffer_delete(hash_table->name_list, i);
+        }
+    }
 }
 
 void hash_free(HashTable *hash_table) {
@@ -97,6 +104,7 @@ void hash_free(HashTable *hash_table) {
     free(hash_table->container);
     hash_table->container = NULL;
     hash_table->count = 0;
+    list_buffer_free(hash_table->name_list);
     free(hash_table);
     hash_table = NULL;
 }

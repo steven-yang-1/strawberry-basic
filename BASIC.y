@@ -23,6 +23,8 @@
 %token FOR TO DOWNTO STEP ENDFOR
 %token ASSIGN
 %token EQ
+%token SUB ENDSUB RETURN
+%token <expr> BREAK CONTINUE
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -50,6 +52,8 @@
 %type <expr> for_statement
 %type <expr> for_step
 %type <expr> do_loop_statement
+%type <expr> sub_program
+%type <expr> return_value
 
 %%
 statements:	{$$ = NULL;}|_statements		{
@@ -81,6 +85,18 @@ statement:	VARIABLE_NAME assignment		{
 	|	DIM dimension				{
 								$$ = $2;
 							}
+	|	sub_program				{
+								$$ = $1;
+							}
+	|	return_value				{
+								$$ = $1;
+							}
+	|	BREAK					{
+								$$ = make_break();
+							}
+	|	CONTINUE				{
+								$$ = make_continue();
+							}
 	;
 	
 dimension:
@@ -93,6 +109,14 @@ dimension:
 											$$ = make_dim($1, $2, node);
 										}
 	;
+sub_program:
+	SUB VARIABLE_NAME _statements ENDSUB		{
+								$$ = make_function_define($2, $3, NULL);
+							};
+return_value:
+	RETURN expression				{
+								$$ = make_return($2);
+							};
 if_statement:		IF expression THEN _statements elseif_statement else_statement ENDIF	{
 													$$ = make_if_expression($2, $4, $5, $6);
 												};
@@ -212,7 +236,7 @@ _func_or_var:						{
 								$$ = $2;
 							};
 
-expr_list:						{ 	$$=NULL;	}
+expr_list:						{ 	$$ = make_ast(NODE_TYPE_EXPR_ITEM, NULL, NULL);	}
 	|	expression				{
 								$$ = make_ast(NODE_TYPE_EXPR_ITEM, $1, NULL);
 							}
@@ -245,11 +269,13 @@ _assignment:	expression				{
 int main()
 {
 	env = malloc(sizeof(RuntimeEnvironment) + 1);
-	env->stack = stack_init();
+	env->call_stack = stack_init();
 	env->vars = hash_init(800);
+	env->functions = hash_init(800);
 	yyparse();
 	hash_free(env->vars);
-	stack_free(env->stack);
+	//hash_free(env->functions);
+	stack_free(env->call_stack);
 	free(env);
 	return 0;
 }

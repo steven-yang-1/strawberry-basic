@@ -18,6 +18,9 @@ void* stack_pop(Stack* stack) {
 }
 
 void* stack_peak(Stack* stack) {
+    if (stack->count == 0) {
+        return NULL;
+    }
     return list_buffer_get(stack, stack->count - 1);
 }
 

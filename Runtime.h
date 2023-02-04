@@ -25,12 +25,19 @@
 #define NODE_TYPE_WHILE_STATEMENT 10018
 #define NODE_TYPE_FOR_STATEMENT 10019
 #define NODE_TYPE_DO_LOOP_STATEMENT 10020
+#define NODE_TYPE_FUNCTION_DEFINE 10021
+#define NODE_TYPE_RETURN 10022
+#define NODE_TYPE_BREAK 10023
+#define NODE_TYPE_CONTINUE 10024
 
 #define C_INT 0
 #define C_DECIMAL 1
 #define C_STRING 2
 #define C_LIST_BUFFER 3
 #define C_NULL 4
+#define C_FUNCTION_DEFINE 5
+#define C_BREAK 6
+#define C_CONTINUE 7
 
 
 typedef struct Var {
@@ -50,7 +57,7 @@ typedef struct Constant {
 
 
 typedef struct RuntimeValue {
-	int type;
+	int runtime_type;
 	int i_val;
 	double d_val;
 	char* s_val;
@@ -59,8 +66,9 @@ typedef struct RuntimeValue {
 
 
 typedef struct RuntimeEnvironment {
-	Stack* stack;
+	Stack* call_stack;
 	HashTable* vars;
+	HashTable* functions;
 } RuntimeEnvironment;
 
 struct RuntimeEnvironment* env;
@@ -89,6 +97,10 @@ RuntimeValue* make_runtime_string(char* s_val);
 
 RuntimeValue* make_runtime_null();
 
+RuntimeValue* make_runtime_break();
+
+RuntimeValue* make_runtime_continue();
+
 typedef struct AST {
 	int node_type;
 	struct AST* left_node;
@@ -101,6 +113,13 @@ typedef struct Dimension {
 	AST* node;
 	AST* next_dim;
 } Dimension;
+
+typedef struct RuntimeFunction {
+	int type;
+	char* name;
+	ListBuffer* arguments;
+	AST* statements;
+} RuntimeFunction;
 
 Dimension* var_make_null(char* var_name);
 
@@ -156,6 +175,43 @@ typedef struct ForStatement {
 } ForStatement;
 
 AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements);
+
+typedef struct FunctionDefineStatement {
+	int node_type;
+	AST* statements;
+	AST* arguments;
+	char* name;
+} FunctionDefineStatement;
+
+AST* make_function_define(char* name, AST* statements, AST* arguments);
+
+typedef struct FunctionStackElement {
+	HashTable* local_vars;
+} FunctionStackElement;
+
+FunctionStackElement* dup_new_func_stack_element();
+
+typedef struct ReturnStatement {
+	int node_type;
+	AST* return_expr;
+} ReturnStatement;
+
+AST* make_return(AST* expr);
+
+typedef struct BreakStatement {
+	int node_type;
+	AST* placeholder;
+	AST* placeholder2;
+} BreakStatement;
+
+typedef struct ContinueStatement {
+	int node_type;
+	AST* placeholder;
+	AST* placeholder2;
+} ContinueStatement;
+
+AST* make_break();
+AST* make_continue();
 
 RuntimeValue* execute(AST* ast);
 

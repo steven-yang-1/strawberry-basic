@@ -114,8 +114,23 @@ var_name	[_A-Za-z0-9]+
 "loop"		{
 			return LOOP;
 		}
+"break"	{
+			return BREAK;
+		}
+"continue"	{
+			return CONTINUE;
+		}
 "."		{
 			return '.';
+		}
+"sub"		{
+			return SUB;
+		}
+"end sub"	{
+			return ENDSUB;
+		}
+"return"	{
+			return RETURN;
 		}
 "true"		{
 			yylval.expr = (AST*) make_ast_integer(1);
