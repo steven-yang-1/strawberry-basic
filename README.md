@@ -8,14 +8,17 @@ ver 0.01a4
 已经实现了基本表达式、赋值、If-ElseIf-Else语句、While循环、Do-Loop循环、For循环
 Break语句、Continue语句、Sub定义过程
 
+开发环境：
 
-安装方法（Ubuntu）：
+Ubuntu/GCC/Flex/Bison
+
+编译安装（Ubuntu）：
 
 - make flex
 - make bison
 - make compile
 
-运行脚本Test.basic（Ubuntu）：
+用标准输入流运行脚本（Ubuntu）：
 
 - ./BASIC < Testcase1.basic
 - ./BASIC < Testcase2.basic
