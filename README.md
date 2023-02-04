@@ -17,5 +17,7 @@ Break语句、Continue语句、Sub定义过程
 
 运行脚本Test.basic（Ubuntu）：
 
-- ./BASIC < Test.basic
+- ./BASIC < Testcase1.basic
+- ./BASIC < Testcase2.basic
+- ./BASIC < Testcase3.basic
 
