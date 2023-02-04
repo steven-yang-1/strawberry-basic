@@ -29,6 +29,7 @@
 #define NODE_TYPE_RETURN 10022
 #define NODE_TYPE_BREAK 10023
 #define NODE_TYPE_CONTINUE 10024
+#define NODE_TYPE_LINE_BREAK 10025
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -38,7 +39,6 @@
 #define C_FUNCTION_DEFINE 5
 #define C_BREAK 6
 #define C_CONTINUE 7
-
 
 typedef struct Var {
 	int node_type;
@@ -69,6 +69,7 @@ typedef struct RuntimeEnvironment {
 	Stack* call_stack;
 	HashTable* vars;
 	HashTable* functions;
+	int current_line;
 } RuntimeEnvironment;
 
 struct RuntimeEnvironment* env;

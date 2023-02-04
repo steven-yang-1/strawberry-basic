@@ -25,6 +25,7 @@
 %token EQ
 %token SUB ENDSUB RETURN
 %token <expr> BREAK CONTINUE
+%token LINE_BREAK
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -96,6 +97,9 @@ statement:	VARIABLE_NAME assignment		{
 							}
 	|	CONTINUE				{
 								$$ = make_continue();
+							}
+	|	LINE_BREAK				{
+								$$ = make_ast(NODE_TYPE_LINE_BREAK, NULL, NULL);
 							}
 	;
 	
@@ -227,6 +231,9 @@ expression:	NUMBER					{
 	|	STRING					{
 								$$ = $1;
 							}
+	|	LINE_BREAK				{
+								$$ = make_ast(NODE_TYPE_LINE_BREAK, NULL, NULL);
+							}
 	;
 
 _func_or_var:						{
@@ -272,6 +279,7 @@ int main()
 	env->call_stack = stack_init();
 	env->vars = hash_init(800);
 	env->functions = hash_init(800);
+	env->current_line = 1;
 	yyparse();
 	hash_free(env->vars);
 	//hash_free(env->functions);
@@ -282,6 +290,6 @@ int main()
 
 int yyerror(const char *message)
 {
-	fprintf(stderr, "Syntax error at line %g: %s\n", errline, message);
+	fprintf(stderr, "Syntax error at line %d: %s\n", env->current_line, message);
 	return 0;
 }

@@ -277,7 +277,9 @@ AST* make_continue() {
 }
 
 RuntimeValue* execute(AST* ast) {
-	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
+	if (ast->node_type == NODE_TYPE_LINE_BREAK) {
+		env->current_line++;
+	} else if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
 		Dimension* dim = (Dimension*) ast;
 		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 		if (peak == NULL && hash_has_key(env->vars, dim->var_name)) {

@@ -12,6 +12,7 @@ extern YYSTYPE yylval;
 
 %option noyywrap
 %option caseless
+%option yylineno
 
 numeric	[0-9]+(\.[0-9]+)?
 var_name	[_A-Za-z0-9]+
@@ -169,7 +170,10 @@ var_name	[_A-Za-z0-9]+
 			return STRING;
 		}
 [ \t]		;
-[\r\n]		;
+[\r]		;
+[\n]		{
+			return LINE_BREAK;
+		};
 <<EOF>>	return 0;
 .		return yytext[0];
 %%

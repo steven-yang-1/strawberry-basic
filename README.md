@@ -1,5 +1,5 @@
 ## **StrawberryBASIC**
-ver 0.01a3
+ver 0.01a4
 
 ![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
