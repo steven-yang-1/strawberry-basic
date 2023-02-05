@@ -10,6 +10,7 @@ Break语句、Continue语句、Sub定义过程、Function自定义函数、Retur
 
 - 语法和教程请参考仓库中的最新版本用户手册pdf，该手册假定你至少已经粗略地学过微软公司的Visual Basic（或者.Net版）
 - BASIC语言是Beginners' All-purpose Symbolic Instruction Code的缩写，一般译为“初学者通用符号指令代码”，主打易学性和易用性
+- StrawberryBASIC语言是BASIC语言的方言，但大体上是一样的
 
 开发环境：
 
@@ -28,7 +29,7 @@ Ubuntu/GCC/Flex/Bison
 - ./BASIC < ../test/Testcase3.basic
 - ./BASIC < ../test/Testcase4.basic
 
-参与开发
+开发
 
-- Steven Yang（杨泰然）
+- Steven Yang（杨泰然）@steven-yang-blue
 
