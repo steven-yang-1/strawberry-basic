@@ -1,5 +1,5 @@
 ## **StrawberryBASIC**
-ver 0.01a4
+ver 0.01a5
 
 ![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
@@ -20,7 +20,7 @@ Ubuntu/GCC/Flex/Bison
 
 用标准输入流运行脚本（Ubuntu）：
 
-- ./BASIC < Testcase1.basic
-- ./BASIC < Testcase2.basic
-- ./BASIC < Testcase3.basic
-
+- ./BASIC < ../test/Testcase1.basic
+- ./BASIC < ../test/Testcase2.basic
+- ./BASIC < ../test/Testcase3.basic
+- ./BASIC < ../test/Testcase4.basic
