@@ -58,6 +58,7 @@ RuntimeValue* make_runtime_integer(int i_val) {
 	}
 	new_val->runtime_type = C_INT;
 	new_val->i_val = i_val;
+	new_val->is_return = 0;
 	return new_val;
 }
 
@@ -69,6 +70,7 @@ RuntimeValue* make_runtime_decimal(double d_val) {
 	}
 	new_val->runtime_type = C_DECIMAL;
 	new_val->d_val = d_val;
+	new_val->is_return = 0;
 	return new_val;
 }
 
@@ -81,6 +83,7 @@ RuntimeValue* make_runtime_string(char* s_val) {
 	new_val->runtime_type = C_STRING;
 	new_val->s_val = (char *) malloc(sizeof(char) * strlen(s_val) + 1);
 	strcpy(new_val->s_val, s_val);
+	new_val->is_return = 0;
 	return new_val;
 }
 
@@ -91,6 +94,7 @@ RuntimeValue* make_runtime_null() {
 		exit(0);
 	}
 	new_val->runtime_type = C_NULL;
+	new_val->is_return = 0;
 	return new_val;
 }
 
@@ -101,6 +105,7 @@ RuntimeValue* make_runtime_break() {
 		exit(0);
 	}
 	new_val->runtime_type = C_BREAK;
+	new_val->is_return = 0;
 	return new_val;
 }
 
@@ -111,6 +116,7 @@ RuntimeValue* make_runtime_continue() {
 		exit(0);
 	}
 	new_val->runtime_type = C_CONTINUE;
+	new_val->is_return = 0;
 	return new_val;
 }
 
@@ -236,15 +242,6 @@ FunctionStackElement* dup_new_func_stack_element() {
 	}
 	HashTable* new_table = malloc(sizeof(HashTable) + 1);
 	new_table = hash_init(var_env_pt->pool_size);
-	/*
-	for (int i = 0; i < var_env_pt->count; i++) {
-		hash_put(
-			new_table,
-			(char*)list_buffer_get(var_env_pt->name_list, i),
-			hash_get(var_env_pt, (char*)list_buffer_get(var_env_pt->name_list, i))
-		);
-	}
-	*/
 	new_val->local_vars = new_table;
 	return new_val;
 }
@@ -274,6 +271,13 @@ AST* make_continue() {
 	}
 	new_val->node_type = NODE_TYPE_CONTINUE;
 	return (AST*) new_val;
+}
+
+RuntimeValue* make_new_runtime_list_buffer() {
+	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
+	new_val->runtime_type = C_LIST_BUFFER;
+	new_val->list = list_buffer_init();
+	return new_val;
 }
 
 RuntimeValue* execute(AST* ast) {
@@ -319,13 +323,23 @@ RuntimeValue* execute(AST* ast) {
 			}
 		}
 	} else if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE) {
+		// Function definition
 		FunctionDefineStatement* function_statement = (FunctionDefineStatement*) ast;
 		RuntimeFunction* func = malloc(sizeof(RuntimeFunction) + 1);
 		func->type = C_FUNCTION_DEFINE;
 		func->name = malloc(sizeof(char) * strlen(function_statement->name) + 1);
 		strcpy(func->name, function_statement->name);
 		func->statements = function_statement->statements;
-		func->arguments = list_buffer_init();
+		RuntimeValue* args_list;
+		func->arguments = NULL;
+		if (function_statement->arguments != NULL) {
+			args_list = execute(function_statement->arguments);
+			if (args_list != NULL) {
+				func->arguments = args_list->list;
+			}
+		} else {
+			func->arguments = list_buffer_init();
+		}
 		if (hash_has_key(env->functions, func->name)) {
 			yyerror("You cannot redefine a function or sub-program.");
 			exit(0);
@@ -361,6 +375,7 @@ RuntimeValue* execute(AST* ast) {
 		value->i_val = ((Constant *)ast)->i_val;
 		value->d_val = ((Constant *)ast)->d_val;
 		value->s_val = ((Constant *)ast)->s_val;
+		value->is_return = 0;
 		return value;
 	} else if (ast->node_type == NODE_TYPE_IF_STATEMENT) {
 		IfStatement* if_statement = (IfStatement *) ast;
@@ -387,20 +402,20 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == NODE_TYPE_PRIORITY) {
 		return execute(ast->left_node);
 	} else if (ast->node_type == NODE_TYPE_STATEMENT) {
-		if (ast->left_node == NULL && ast->right_node == NULL) {
-		} else {
-			RuntimeValue* left_result = execute(ast->left_node);
-			if (left_result != NULL) {
-				if (left_result->runtime_type == C_BREAK || left_result->runtime_type == C_CONTINUE) {
-					return left_result;
+		if (ast->left_node == NULL) {
+			return NULL;
+		}
+		AST* current_node = ast;
+		while (current_node != NULL) {
+			RuntimeValue* interrupter = execute(current_node->left_node);
+			if (interrupter != NULL) {
+				if (interrupter->runtime_type == C_BREAK || interrupter->runtime_type == C_CONTINUE || interrupter->is_return) {
+					return interrupter;
 				}
 			}
-			if (ast->right_node != NULL) {
-				RuntimeValue* right_result = execute(ast->right_node);
-				return right_result;
-			}
-			return left_result;
+			current_node = current_node->right_node;
 		}
+		return NULL;
 	} else if (ast->node_type == '&') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
@@ -535,8 +550,10 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_integer(l) / runtime_as_integer(r));
 		}
 	} else if (ast->node_type == NODE_TYPE_FUNC) {
+		// Function call
 		FunctionStatement* functional = (FunctionStatement *)ast;
-		RuntimeValue* argument_list = execute(functional->expr_list);
+		RuntimeValue* argument_list;
+		argument_list = execute(functional->expr_list);
 		if (!strcmp(functional->name, "Print")) {
 			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
 			if (param1->runtime_type == C_STRING) {
@@ -563,27 +580,18 @@ RuntimeValue* execute(AST* ast) {
 			return NULL;
 		} else {
 			stack_push(env->call_stack, dup_new_func_stack_element());
-			RuntimeFunction* runtime_function = (RuntimeFunction*) hash_get(env->functions, functional->name);
-			if (runtime_function == NULL) {
+			RuntimeFunction* current_runtime_function = (RuntimeFunction*) hash_get(env->functions, functional->name);
+			if (current_runtime_function == NULL) {
 				yyerror("The function or sub-program which you're finding does not defined.");
 				exit(0);
 			}
-			RuntimeValue* return_value = execute(runtime_function->statements);
+			if (current_runtime_function->arguments->count > 0) {
+				execute_function_header(current_runtime_function->arguments, argument_list->list);
+			}
+			RuntimeValue* return_value = execute(current_runtime_function->statements);
 			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
-			/*
-			FunctionStackElement* up_env = (FunctionStackElement*) stack_peak(env->call_stack);
-			HashTable* up_env_hash;
-			if (up_env == NULL) {
-				up_env_hash = env->vars;
-			} else {
-				up_env_hash = up_env;
-			}
-			for (int i = 0; i < popped_env->local_vars->name_list->count; i++) {
-				char* var_name = (char*) list_buffer_get(popped_env->local_vars->name_list, i);
-				RuntimeValue* value = hash_get(popped_env, var_name);
-				hash_put(up_env_hash, var_name, value);
-			}
-			*/
+			hash_free(popped_env->local_vars);
+			free(popped_env);
 			return return_value;
 		}
 	} else if (ast->node_type == NODE_TYPE_EXPR_ITEM) {
@@ -685,30 +693,81 @@ RuntimeValue* execute(AST* ast) {
 		}
 		ReturnStatement* return_statement = (ReturnStatement*) ast;
 		RuntimeValue* returned_value = execute(return_statement->return_expr);
+		returned_value->is_return = 1;
 		return returned_value;
 	} else if (ast->node_type == NODE_TYPE_BREAK) {
 		return make_runtime_break();
 	} else if (ast->node_type == NODE_TYPE_CONTINUE) {
 		return make_runtime_continue();
+	} else if (ast->node_type == NODE_TYPE_FUNCTION_ARG_DEFINE) {
+		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
+		value->runtime_type = C_LIST_BUFFER;
+		// ListBuffer<RuntimeFunctionArg>
+		value->list = flatten_function_args(ast);
+		return value;
 	}
 	return NULL;
 }
 
+AST* make_function_arg(char* name, AST* default_value, AST* next_node) {
+	FunctionArgumentDefinition* new_block = (FunctionArgumentDefinition*) malloc(sizeof(FunctionArgumentDefinition) + 1);
+	new_block->node_type = NODE_TYPE_FUNCTION_ARG_DEFINE;
+	new_block->arg_name = (char*)malloc(sizeof(char)*strlen(name) + 1);
+	strcpy(new_block->arg_name, name);
+	new_block->default_value = default_value;
+	new_block->next_node = next_node;
+	return (AST*) new_block;
+}
+
+void execute_function_header(ListBuffer* definitions, ListBuffer* values) {
+	FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+	if (peak == NULL) {
+		yyerror("System error.");
+		exit(0);
+	}
+	if (definitions->count != values->count) {
+		yyerror("The arguments are not matched in the function.");
+		exit(0);
+	}
+	for (int i = 0; i < definitions->count; i++) {
+		RuntimeFunctionArg* arg = (RuntimeFunctionArg*) list_buffer_get(definitions, i);
+		if (arg->default_value == NULL) {
+			hash_put(peak->local_vars, arg->name, list_buffer_get(values, i));
+		} else {
+			hash_put(peak->local_vars, arg->name, arg->default_value);		
+		}
+	}
+}
+
+// ListBuffer<RuntimeValue>
 ListBuffer* integrate_params(AST* node) {
-	ListBuffer* default_list = list_buffer_init();
-	if (node->left_node != NULL) {
-		RuntimeValue* param1 = execute(node->left_node);
-		list_buffer_add(default_list, param1);
-	} else {
-		return default_list;
+	ListBuffer* result_list = list_buffer_init();
+	AST* current_node = node;
+	while (current_node != NULL) {
+		if (current_node->left_node != NULL) {
+			list_buffer_add(result_list, execute(current_node->left_node));
+		}
+		current_node = current_node->right_node;
 	}
-	if (node->right_node != NULL) {
-		ListBuffer* param_list_2 = integrate_params(node->right_node);	
-		list_buffer_concat(default_list, param_list_2);
-		return default_list;
-	} else {
-		return default_list;
+	return result_list;
+}
+
+// ListBuffer<RuntimeFunctionArg>
+ListBuffer* flatten_function_args(AST* node) {
+	FunctionArgumentDefinition* arg = (FunctionArgumentDefinition*) node;
+	ListBuffer* result_list = list_buffer_init();
+	FunctionArgumentDefinition* tmp_arg = arg;
+	RuntimeFunctionArg* runtime_arg;
+	while (tmp_arg != NULL) {
+		runtime_arg = (RuntimeFunctionArg*) malloc(sizeof(RuntimeFunctionArg) + 1);
+		runtime_arg->name = (char*)malloc(sizeof(char)*strlen(tmp_arg->arg_name) + 1);
+		strcpy(runtime_arg->name, tmp_arg->arg_name);
+		runtime_arg->default_value = NULL;
+		list_buffer_add(result_list, (void *)runtime_arg);
+		tmp_arg = tmp_arg->next_node;
 	}
+	
+	return result_list;
 }
 
 AST* make_while_expression(AST* condition, AST* statements) {

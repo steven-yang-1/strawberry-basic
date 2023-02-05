@@ -26,6 +26,7 @@
 %token SUB ENDSUB RETURN
 %token <expr> BREAK CONTINUE
 %token LINE_BREAK
+%token FUNCTION ENDFUNCTION
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -55,6 +56,9 @@
 %type <expr> do_loop_statement
 %type <expr> sub_program
 %type <expr> return_value
+%type <expr> define_func_args
+%type <expr> define_function
+%type <expr> _define_func_args
 
 %%
 statements:	{$$ = NULL;}|_statements		{
@@ -98,6 +102,9 @@ statement:	VARIABLE_NAME assignment		{
 	|	CONTINUE				{
 								$$ = make_continue();
 							}
+	|	define_function			{
+								$$ = $1;
+							}
 	|	LINE_BREAK				{
 								$$ = make_ast(NODE_TYPE_LINE_BREAK, NULL, NULL);
 							}
@@ -116,6 +123,19 @@ dimension:
 sub_program:
 	SUB VARIABLE_NAME _statements ENDSUB		{
 								$$ = make_function_define($2, $3, NULL);
+							};
+							
+define_function:
+	FUNCTION VARIABLE_NAME '(' define_func_args ')' _statements ENDFUNCTION	{
+												$$ = make_function_define($2, $6, $4);
+											};
+define_func_args:
+	VARIABLE_NAME _define_func_args		{
+								$$ = make_function_arg($1, NULL, $2);
+							};
+_define_func_args: {$$=NULL;} |
+	',' VARIABLE_NAME _define_func_args		{
+								$$ = make_function_arg($2, NULL, $3);
 							};
 return_value:
 	RETURN expression				{

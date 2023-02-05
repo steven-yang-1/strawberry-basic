@@ -30,6 +30,7 @@
 #define NODE_TYPE_BREAK 10023
 #define NODE_TYPE_CONTINUE 10024
 #define NODE_TYPE_LINE_BREAK 10025
+#define NODE_TYPE_FUNCTION_ARG_DEFINE 10026
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -62,7 +63,10 @@ typedef struct RuntimeValue {
 	double d_val;
 	char* s_val;
 	ListBuffer* list;
+	int is_return;
 } RuntimeValue;
+
+RuntimeValue* make_new_runtime_list_buffer();
 
 
 typedef struct RuntimeEnvironment {
@@ -114,6 +118,11 @@ typedef struct Dimension {
 	AST* node;
 	AST* next_dim;
 } Dimension;
+
+typedef struct RuntimeFunctionArg {
+	char* name;
+	RuntimeValue* default_value;
+} RuntimeFunctionArg;
 
 typedef struct RuntimeFunction {
 	int type;
@@ -211,8 +220,21 @@ typedef struct ContinueStatement {
 	AST* placeholder2;
 } ContinueStatement;
 
+typedef struct FunctionArgumentDefinition {
+	int node_type;
+	AST* default_value;
+	AST* next_node;
+	char* arg_name;
+} FunctionArgumentDefinition;
+
+AST* make_function_arg(char* name, AST* default_value, AST* next_node);
+
 AST* make_break();
 AST* make_continue();
+
+ListBuffer* flatten_function_args(AST* node);
+
+void execute_function_header(ListBuffer* definitions, ListBuffer* values);
 
 RuntimeValue* execute(AST* ast);
 

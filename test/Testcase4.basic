@@ -1,0 +1,34 @@
+Function Add(a, b)
+	Return a + b
+End Function
+
+Function Minus(a, b)
+	Return a - b
+End Function
+
+Function Multiply(a, b)
+	Return a * b
+End Function
+
+Function Divide(a, b)
+	If b == 0 Then
+		Return "Not a number."
+	End If
+	Return a / b
+End Function
+
+Function LoopTimes(times)
+	PrintLine("Looping:")
+	For i = 1 To times
+		PrintLine(i)
+	End For
+End Function
+
+PrintLine(Add(1, 2))
+PrintLine(Add(1, 2.2))
+PrintLine(Minus(3, 2.2))
+PrintLine(Multiply(3, 9))
+PrintLine(Divide(5, 0))
+PrintLine(Divide(5, 2))
+PrintLine(Divide(5, 2.0))
+LoopTimes(10)

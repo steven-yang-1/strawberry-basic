@@ -130,6 +130,12 @@ var_name	[_A-Za-z0-9]+
 "end sub"	{
 			return ENDSUB;
 		}
+"function"	{
+			return FUNCTION;
+		}
+"end function"	{
+			return ENDFUNCTION;
+		}
 "return"	{
 			return RETURN;
 		}
