@@ -1,9 +1,17 @@
 Dim testNumber = 1
-testNumber = 1.2
+REM testNumber = 1.2
 
 PrintLine(testNumber)
 
 PrintLine("")
+
+For j = 10 To 0 Step -2
+	PrintLine(j)
+Next
+
+For j = 10 To 0 Step -2
+	PrintLine(j)
+Next
 
 Dim i = 0
 While i < 10
@@ -16,10 +24,6 @@ While i < 10
 End While
 
 PrintLine("")
-
-For j = 10 To 0 Step -2
-	PrintLine(j)
-End For
 
 PrintLine("")
 

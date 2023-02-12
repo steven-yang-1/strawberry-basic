@@ -1,12 +1,12 @@
 ## **StrawberryBASIC**
-ver 0.01a6
+ver 0.01a7
 
 ![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
 原创BASIC方言和解释器
 
-已经实现了基本表达式、赋值、If-ElseIf-Else语句、While循环、Do-Loop循环、For循环
-Break语句、Continue语句、Sub定义过程、Function自定义函数、Return语句
+已经实现了基本表达式、赋值、算数/逻辑/比较运算、If-ElseIf-Else语句、While循环、Do-Loop循环、For循环
+Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定义函数、Return语句
 
 - 语法和教程请参考仓库中的最新版本用户手册pdf，该手册假定你至少已经粗略地学过微软公司的Visual Basic（或者.Net版）、TurboBASIC等其中一种BASIC的实现
 - BASIC语言是Beginners' All-purpose Symbolic Instruction Code的缩写，一般译为“初学者通用符号指令代码”，主打易学性和易用性

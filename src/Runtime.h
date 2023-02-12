@@ -32,6 +32,7 @@
 #define NODE_TYPE_LINE_BREAK 10025
 #define NODE_TYPE_FUNCTION_ARG_DEFINE 10026
 #define NODE_TYPE_SUB 10027
+#define NODE_TYPE_EXIT_SUB 10028
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -42,6 +43,7 @@
 #define C_BREAK 6
 #define C_CONTINUE 7
 #define C_SUB 8
+#define C_EXITSUB 9
 
 typedef struct Var {
 	int node_type;

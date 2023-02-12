@@ -17,12 +17,12 @@ Function Divide(a, b)
 	Return a / b
 End Function
 
-Function LoopTimes(times)
+Sub LoopTimes(times)
 	PrintLine("Looping:")
 	For i = 1 To times
 		PrintLine(i)
-	End For
-End Function
+	Next
+End Sub
 
 PrintLine(Add(1, 2))
 PrintLine(Add(1, 2.2))

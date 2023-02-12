@@ -20,13 +20,14 @@
 %token BITAND BITOR
 %token IF ELSEIF ELSE ENDIF THEN
 %token WHILE ENDWHILE DO LOOP
-%token FOR TO DOWNTO STEP ENDFOR
+%token FOR TO DOWNTO STEP NEXT
 %token ASSIGN
 %token EQ
 %token SUB ENDSUB RETURN
 %token <expr> BREAK CONTINUE
 %token FUNCTION ENDFUNCTION
 %token LINE_BREAK
+%token EXITSUB
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -102,6 +103,9 @@ statement:	VARIABLE_NAME assignment		{
 	|	CONTINUE				{
 								$$ = make_continue(@1.first_line);
 							}
+	|	EXITSUB				{
+								$$ = make_ast(NODE_TYPE_EXIT_SUB, NULL, NULL, @1.first_line);
+							}
 	|	define_function			{
 								$$ = $1;
 							}
@@ -159,7 +163,7 @@ while_statement:	WHILE expression _statements ENDWHILE					{
 do_loop_statement:	DO _statements LOOP WHILE expression		{
 										$$ = make_do_loop_expression($2, $5, @1.first_line);
 									};
-for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements ENDFOR {
+for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements NEXT {
 								Dimension* dim = make_dim($2, $4, NULL, @1.first_line);
 								AST* step;
 								if ($7 == NULL) {

@@ -185,6 +185,7 @@ AST* make_redim(char* var_name, AST* node, int line_no) {
 	new_block->line_no = line_no;
 	new_block->var_name = var_name;
 	new_block->node = node;
+	new_block->next_dim = NULL;
 	return (AST*) new_block;
 }
 
@@ -385,15 +386,23 @@ RuntimeValue* execute(AST* ast) {
 		}
 		if (peak == NULL) {
 			if (dim->node != NULL) {
-				hash_put(env->vars, dim->var_name, execute(dim->node));
+				RuntimeValue* value = execute(dim->node);
+				hash_put(env->vars, dim->var_name, value);
+				return value;
 			} else {
-				hash_put(env->vars, dim->var_name, make_runtime_null());
+				RuntimeValue* null_value = make_runtime_null();
+				hash_put(env->vars, dim->var_name, null_value);
+				return null_value;
 			}
 		} else {
 			if (dim->node != NULL) {
-				hash_put(peak->local_vars, dim->var_name, execute(dim->node));
+				RuntimeValue* value = execute(dim->node);
+				hash_put(peak->local_vars, dim->var_name, value);
+				return value;
 			} else {
-				hash_put(peak->local_vars, dim->var_name, make_runtime_null());
+				RuntimeValue* null_value = make_runtime_null();
+				hash_put(peak->local_vars, dim->var_name, null_value);
+				return null_value;
 			}
 		}
 	} else if (ast->node_type == NODE_TYPE_CONSTANT) {
@@ -591,6 +600,8 @@ RuntimeValue* execute(AST* ast) {
 				printf("%f", param1->d_val);
 			} else if (param1->runtime_type == C_NULL) {
 				printf("NULL");
+			} else {
+				printf("System error.\n");
 			}
 			return NULL;
 		} else if (!strcmp(functional->name, "PrintLine")) {
@@ -603,6 +614,8 @@ RuntimeValue* execute(AST* ast) {
 				printf("%f\n", param1->d_val);
 			} else if (param1->runtime_type == C_NULL) {
 				printf("NULL\n");
+			} else {
+				printf("System error.\n");
 			}
 			return NULL;
 		} else {
@@ -625,7 +638,7 @@ RuntimeValue* execute(AST* ast) {
 					exit(0);
 				}
 				return return_value;
-			} else if (return_value != NULL) {
+			} else if (return_value != NULL && return_value->runtime_type != C_EXITSUB) {
 				raise_error("Subroutine cannot return a value.", ast);
 				exit(0);
 			}
@@ -679,6 +692,13 @@ RuntimeValue* execute(AST* ast) {
 		} while (runtime_as_integer(execute(do_loop_statement->condition)));
 	} else if (ast->node_type == NODE_TYPE_FOR_STATEMENT) {
 		ForStatement* for_statement = (ForStatement *) ast;
+		if (hash_has_key(env->vars, ((Dimension*)(for_statement->dim))->var_name)) {
+			for_statement->dim->node_type = NODE_TYPE_REASSIGN;
+		}
+		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+		if (peak != NULL && hash_has_key(peak->local_vars, ((Dimension*)(for_statement->dim))->var_name)) {
+			for_statement->dim->node_type = NODE_TYPE_REASSIGN;
+		}
 		RuntimeValue* start = execute(for_statement->dim);
 		RuntimeValue* until = execute(for_statement->until);
 		RuntimeValue* step = execute(for_statement->step);
@@ -735,6 +755,15 @@ RuntimeValue* execute(AST* ast) {
 		return make_runtime_break();
 	} else if (ast->node_type == NODE_TYPE_CONTINUE) {
 		return make_runtime_continue();
+	} else if (ast->node_type == NODE_TYPE_EXIT_SUB) {
+		if (stack_peak(env->call_stack) == NULL) {
+			raise_error("Cannot exit subroutine with no subroutine running.", ast);
+			exit(0);
+		}
+		RuntimeValue* returned_value = make_runtime_null();
+		returned_value->runtime_type = C_EXITSUB;
+		returned_value->is_return = 2;
+		return returned_value;
 	} else if (ast->node_type == NODE_TYPE_FUNCTION_ARG_DEFINE) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
 		value->runtime_type = C_LIST_BUFFER;
@@ -827,5 +856,6 @@ AST* make_do_loop_expression(AST* statements, AST* condition, int line_no) {
 
 void raise_error(const char *message, const AST* ast) {
 	fprintf(stderr, "Syntax error at line %d: %s\n", ast->line_no, message);
+	fflush(stderr);
 	return 0;
 }

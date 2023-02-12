@@ -107,8 +107,8 @@ var_name	[_A-Za-z0-9]+
 "to"		{
 			return TO;
 		}
-"end for"	{
-			return ENDFOR;
+"next"		{
+			return NEXT;
 		}
 "step"		{
 			return STEP;
@@ -142,6 +142,9 @@ var_name	[_A-Za-z0-9]+
 		}
 "return"	{
 			return RETURN;
+		}
+"exit sub"	{
+			return EXITSUB;
 		}
 "true"		{
 			yylval.expr = (AST*) make_ast_integer(1);

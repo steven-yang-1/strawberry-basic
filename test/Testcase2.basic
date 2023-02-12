@@ -11,6 +11,12 @@ End Sub
 
 Sub Process3()
 	PrintLine(333)
+	PrintLine(444)
+	PrintLine(555)
+	Exit Sub
+	PrintLine(666)
+	PrintLine(777)
+	PrintLine(888)
 End Sub
 
 Process1()
