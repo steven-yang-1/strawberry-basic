@@ -5,9 +5,10 @@
 #include "HashTable.h"
 #include "ListBuffer.h"
 
-Var* make_var(char* name) {
+Var* make_var(char* name, int line_no) {
 	Var* new_val = malloc(sizeof(Var) + 1);
 	new_val->node_type = NODE_TYPE_VAR;
+	new_val->line_no = line_no;
 	new_val->name = (char*) malloc(sizeof(char) * strlen(name) + 1);
 	strcpy(new_val->name, name);
 	return new_val;
@@ -158,43 +159,48 @@ double runtime_as_decimal(RuntimeValue* value) {
 	}
 }
 
-Dimension* var_make_null(char* var_name) {
+Dimension* var_make_null(char* var_name, int line_no) {
 	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
 	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
+	new_block->line_no = line_no;
 	//new_block->runtime_type = "null";
 	new_block->var_name = var_name;
 	new_block->next_dim = NULL;
 	return new_block;
 }
 
-AST* make_dim(char* var_name, AST* node, AST* next_dim) {
+AST* make_dim(char* var_name, AST* node, AST* next_dim, int line_no) {
 	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
 	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
+	new_block->line_no = line_no;
 	new_block->var_name = var_name;
 	new_block->node = node;
 	new_block->next_dim = next_dim;
 	return (AST*) new_block;
 }
 
-AST* make_redim(char* var_name, AST* node) {
+AST* make_redim(char* var_name, AST* node, int line_no) {
 	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
 	new_block->node_type = NODE_TYPE_REASSIGN;
+	new_block->line_no = line_no;
 	new_block->var_name = var_name;
 	new_block->node = node;
 	return (AST*) new_block;
 }
 
-AST* make_ast(int node_type, AST* left_node, AST* right_node) {
+AST* make_ast(int node_type, AST* left_node, AST* right_node, int line_no) {
 	AST* new_val = malloc(sizeof(AST) + 1);
 	new_val->node_type = node_type;
+	new_val->line_no = line_no;
 	new_val->left_node = left_node;
 	new_val->right_node = right_node;
 	return new_val;
 }
 
-AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statement, AST* else_statement) {
+AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statement, AST* else_statement, int line_no) {
 	IfStatement* new_val = malloc(sizeof(IfStatement) + 1);
 	new_val->node_type = NODE_TYPE_IF_STATEMENT;
+	new_val->line_no = line_no;
 	new_val->condition = condition;
 	new_val->if_statement = if_statement;
 	new_val->else_if_statement = else_if_statement;
@@ -202,18 +208,20 @@ AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statemen
 	return (AST*) new_val;
 }
 
-AST* make_function_call(char* name, AST* expr_list) {
+AST* make_function_call(char* name, AST* expr_list, int line_no) {
 	FunctionStatement* new_val = malloc(sizeof(FunctionStatement) + 1);
 	new_val->node_type = NODE_TYPE_FUNC;
+	new_val->line_no = line_no;
 	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
 	strcpy(new_val->name, name);
 	new_val->expr_list = expr_list;
 	return (AST*) new_val;
 }
 
-AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements) {
+AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements, int line_no) {
 	ForStatement* new_val = malloc(sizeof(ForStatement) + 1);
 	new_val->node_type = NODE_TYPE_FOR_STATEMENT;
+	new_val->line_no = line_no;
 	new_val->dim = dim;
 	new_val->until = until;
 	new_val->step = step;
@@ -221,11 +229,23 @@ AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements) {
 	return (AST*) new_val;
 }
 
-AST* make_function_define(char* name, AST* statements, AST* arguments) {
+AST* make_sub_define(char* name, AST* statements, AST* arguments, int line_no) {
+	FunctionDefineStatement* new_val = malloc(sizeof(FunctionDefineStatement) + 1);
+	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
+	strcpy(new_val->name, name);
+	new_val->node_type = NODE_TYPE_SUB;
+	new_val->line_no = line_no;
+	new_val->statements = statements;
+	new_val->arguments = arguments;
+	return (AST*) new_val;
+}
+
+AST* make_function_define(char* name, AST* statements, AST* arguments, int line_no) {
 	FunctionDefineStatement* new_val = malloc(sizeof(FunctionDefineStatement) + 1);
 	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
 	strcpy(new_val->name, name);
 	new_val->node_type = NODE_TYPE_FUNCTION_DEFINE;
+	new_val->line_no = line_no;
 	new_val->statements = statements;
 	new_val->arguments = arguments;
 	return (AST*) new_val;
@@ -246,30 +266,33 @@ FunctionStackElement* dup_new_func_stack_element() {
 	return new_val;
 }
 
-AST* make_return(AST* expr) {
+AST* make_return(AST* expr, int line_no) {
 	ReturnStatement* new_val = malloc(sizeof(ReturnStatement) + 1);
 	new_val->node_type = NODE_TYPE_RETURN;
+	new_val->line_no = line_no;
 	new_val->return_expr = expr;
 	return (AST*) new_val;
 }
 
-AST* make_break() {
+AST* make_break(int line_no) {
 	BreakStatement* new_val = malloc(sizeof(BreakStatement) + 1);
 	if (new_val == NULL) {
 		yyerror("System error.");
 		exit(0);
 	}
 	new_val->node_type = NODE_TYPE_BREAK;
+	new_val->line_no = line_no;
 	return (AST*) new_val;
 }
 
-AST* make_continue() {
+AST* make_continue(int line_no) {
 	ContinueStatement* new_val = malloc(sizeof(ContinueStatement) + 1);
 	if (new_val == NULL) {
 		yyerror("System error.");
 		exit(0);
 	}
 	new_val->node_type = NODE_TYPE_CONTINUE;
+	new_val->line_no = line_no;
 	return (AST*) new_val;
 }
 
@@ -287,11 +310,11 @@ RuntimeValue* execute(AST* ast) {
 		Dimension* dim = (Dimension*) ast;
 		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 		if (peak == NULL && hash_has_key(env->vars, dim->var_name)) {
-			yyerror("Defined variable.");
+			raise_error("Defined variable.", ast);
 			exit(0);
 		}
 		if (peak != NULL && hash_has_key(peak->local_vars, dim->var_name)) {
-			yyerror("Defined variable.");
+			raise_error("Defined variable.", ast);
 			exit(0);
 		}
 		RuntimeValue* value = NULL;
@@ -322,11 +345,15 @@ RuntimeValue* execute(AST* ast) {
 				return value;
 			}
 		}
-	} else if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE) {
+	} else if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE || ast->node_type == NODE_TYPE_SUB) {
 		// Function definition
 		FunctionDefineStatement* function_statement = (FunctionDefineStatement*) ast;
 		RuntimeFunction* func = malloc(sizeof(RuntimeFunction) + 1);
-		func->type = C_FUNCTION_DEFINE;
+		if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE) {
+			func->type = C_FUNCTION_DEFINE;
+		} else {
+			func->type = C_SUB;
+		}
 		func->name = malloc(sizeof(char) * strlen(function_statement->name) + 1);
 		strcpy(func->name, function_statement->name);
 		func->statements = function_statement->statements;
@@ -341,7 +368,7 @@ RuntimeValue* execute(AST* ast) {
 			func->arguments = list_buffer_init();
 		}
 		if (hash_has_key(env->functions, func->name)) {
-			yyerror("You cannot redefine a function or sub-program.");
+			raise_error("You cannot redefine a function or subroutine.", ast);
 			exit(0);
 		}
 		hash_put(env->functions, func->name, (void*) func);
@@ -349,11 +376,11 @@ RuntimeValue* execute(AST* ast) {
 		Dimension* dim = (Dimension*) ast;
 		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 		if (peak == NULL && !hash_has_key(env->vars, dim->var_name)) {
-			yyerror("Undefined variable.");
+			raise_error("Undefined variable.", ast);
 			exit(0);
 		}
 		if (peak != NULL && !hash_has_key(peak->local_vars, dim->var_name)) {
-			yyerror("Undefined variable.");
+			raise_error("Undefined variable.", ast);
 			exit(0);
 		}
 		if (peak == NULL) {
@@ -505,7 +532,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (runtime_as_decimal(r) == 0.0) {
-			yyerror("Divided by 0!");
+			raise_error("Divided by 0!", ast);
 			exit(0);
 		}
 		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
@@ -541,7 +568,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (runtime_as_decimal(r) == 0.0) {
-			yyerror("Modulo by 0!");
+			raise_error("Modulo by 0!", ast);
 			exit(0);
 		}
 		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
@@ -582,17 +609,26 @@ RuntimeValue* execute(AST* ast) {
 			stack_push(env->call_stack, dup_new_func_stack_element());
 			RuntimeFunction* current_runtime_function = (RuntimeFunction*) hash_get(env->functions, functional->name);
 			if (current_runtime_function == NULL) {
-				yyerror("The function or sub-program which you're finding does not defined.");
+				raise_error("The function or subroutine which you're finding does not defined.", ast);
 				exit(0);
 			}
 			if (current_runtime_function->arguments->count > 0) {
-				execute_function_header(current_runtime_function->arguments, argument_list->list);
+				execute_function_header(current_runtime_function->arguments, argument_list->list, ast);
 			}
 			RuntimeValue* return_value = execute(current_runtime_function->statements);
 			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
 			hash_free(popped_env->local_vars);
 			free(popped_env);
-			return return_value;
+			if (current_runtime_function->type == C_FUNCTION_DEFINE) {
+				if (return_value == NULL) {
+					raise_error("Function must return a value.", ast);
+					exit(0);
+				}
+				return return_value;
+			} else if (return_value != NULL) {
+				raise_error("Subroutine cannot return a value.", ast);
+				exit(0);
+			}
 		}
 	} else if (ast->node_type == NODE_TYPE_EXPR_ITEM) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
@@ -613,7 +649,7 @@ RuntimeValue* execute(AST* ast) {
 			fetched_var = hash_get(env->vars, var->name);
 		}
 		if (fetched_var == NULL) {
-			yyerror("Undefined variable.");
+			raise_error("Undefined variable.", ast);
 			exit(0);
 		}
 		return fetched_var;
@@ -688,7 +724,7 @@ RuntimeValue* execute(AST* ast) {
 		//hash_delete(env->vars, ((Dimension*)(for_statement->dim))->var_name);
 	} else if (ast->node_type == NODE_TYPE_RETURN) {
 		if (stack_peak(env->call_stack) == NULL) {
-			yyerror("Cannot return value on the top level.");
+			raise_error("Cannot return value on the top level.", ast);
 			exit(0);
 		}
 		ReturnStatement* return_statement = (ReturnStatement*) ast;
@@ -709,24 +745,25 @@ RuntimeValue* execute(AST* ast) {
 	return NULL;
 }
 
-AST* make_function_arg(char* name, AST* default_value, AST* next_node) {
+AST* make_function_arg(char* name, AST* default_value, AST* next_node, int line_no) {
 	FunctionArgumentDefinition* new_block = (FunctionArgumentDefinition*) malloc(sizeof(FunctionArgumentDefinition) + 1);
 	new_block->node_type = NODE_TYPE_FUNCTION_ARG_DEFINE;
 	new_block->arg_name = (char*)malloc(sizeof(char)*strlen(name) + 1);
+	new_block->line_no = line_no;
 	strcpy(new_block->arg_name, name);
 	new_block->default_value = default_value;
 	new_block->next_node = next_node;
 	return (AST*) new_block;
 }
 
-void execute_function_header(ListBuffer* definitions, ListBuffer* values) {
+void execute_function_header(ListBuffer* definitions, ListBuffer* values, AST* ast) {
 	FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 	if (peak == NULL) {
-		yyerror("System error.");
+		raise_error("System error.", ast);
 		exit(0);
 	}
 	if (definitions->count != values->count) {
-		yyerror("The arguments are not matched in the function.");
+		raise_error("The arguments are not matched in the function.", ast);
 		exit(0);
 	}
 	for (int i = 0; i < definitions->count; i++) {
@@ -770,19 +807,25 @@ ListBuffer* flatten_function_args(AST* node) {
 	return result_list;
 }
 
-AST* make_while_expression(AST* condition, AST* statements) {
+AST* make_while_expression(AST* condition, AST* statements, int line_no) {
 	WhileStatement* new_val = malloc(sizeof(WhileStatement) + 1);
 	new_val->node_type = NODE_TYPE_WHILE_STATEMENT;
+	new_val->line_no = line_no;
 	new_val->condition = condition;
 	new_val->statements = statements;
 	return (AST*) new_val;
 }
 
-AST* make_do_loop_expression(AST* statements, AST* condition) {
+AST* make_do_loop_expression(AST* statements, AST* condition, int line_no) {
 	DoLoopStatement* new_val = malloc(sizeof(DoLoopStatement) + 1);
 	new_val->node_type = NODE_TYPE_DO_LOOP_STATEMENT;
+	new_val->line_no = line_no;
 	new_val->condition = condition;
 	new_val->statements = statements;
 	return (AST*) new_val;
 }
 
+void raise_error(const char *message, const AST* ast) {
+	fprintf(stderr, "Syntax error at line %d: %s\n", ast->line_no, message);
+	return 0;
+}

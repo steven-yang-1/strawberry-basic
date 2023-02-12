@@ -1,20 +1,19 @@
 Dim i = 0
 
-Sub Process1
-	Dim i = 5
-	Return i == 5
+Sub Process1()
+	Dim i = 111
+	PrintLine(111)
 End Sub
 
-Sub Process2
-	Dim i = 12
-	Return i == 12
+Sub Process2(i)
+	PrintLine(i)
 End Sub
 
-Sub Process3
-	Return i == 0
+Sub Process3()
+	PrintLine(333)
 End Sub
 
-PrintLine(Process1())
-PrintLine(Process2())
-PrintLine(Process3())
+Process1()
+Process2(222)
+Process3()
 

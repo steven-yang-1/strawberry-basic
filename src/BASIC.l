@@ -4,10 +4,14 @@
 #include "Runtime.h"
 
 extern YYSTYPE yylval;
+extern int yylineno;
 
 #define C_INT 0
 #define C_DECIMAL 1
 #define C_STRING 2
+
+#define YY_USER_ACTION \
+    yylloc.first_line = yylloc.last_line = yylineno;
 %}
 
 %option noyywrap
@@ -183,3 +187,9 @@ var_name	[_A-Za-z0-9]+
 <<EOF>>	return 0;
 .		return yytext[0];
 %%
+
+int yyerror(const char *message)
+{
+	fprintf(stderr, "Syntax error at line %d: %s\n", yylineno, message);
+	return 0;
+}

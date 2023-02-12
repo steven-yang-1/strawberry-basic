@@ -31,6 +31,7 @@
 #define NODE_TYPE_CONTINUE 10024
 #define NODE_TYPE_LINE_BREAK 10025
 #define NODE_TYPE_FUNCTION_ARG_DEFINE 10026
+#define NODE_TYPE_SUB 10027
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -40,16 +41,19 @@
 #define C_FUNCTION_DEFINE 5
 #define C_BREAK 6
 #define C_CONTINUE 7
+#define C_SUB 8
 
 typedef struct Var {
 	int node_type;
+	int line_no;
 	char* name;
 } Var;
 
-Var* make_var(char* name);
+Var* make_var(char* name, int line_no);
 
 typedef struct Constant {
 	int node_type;
+	int line_no;
 	int i_val;
 	double d_val;
 	char* s_val;
@@ -108,12 +112,14 @@ RuntimeValue* make_runtime_continue();
 
 typedef struct AST {
 	int node_type;
+	int line_no;
 	struct AST* left_node;
 	struct AST* right_node;
 } AST;
 
 typedef struct Dimension {
 	int node_type;
+	int line_no;
 	char* var_name;
 	AST* node;
 	AST* next_dim;
@@ -131,69 +137,77 @@ typedef struct RuntimeFunction {
 	AST* statements;
 } RuntimeFunction;
 
-Dimension* var_make_null(char* var_name);
+Dimension* var_make_null(char* var_name, int line_no);
 
-AST* make_dim(char* var_name, AST* node, AST* next_dim);
+AST* make_dim(char* var_name, AST* node, AST* next_dim, int line_no);
 
-AST* make_redim(char* var_name, AST* node);
+AST* make_redim(char* var_name, AST* node, int line_no);
 
 typedef struct IfStatement {
 	int node_type;
+	int line_no;
 	AST* condition;
 	AST* if_statement;
 	AST* else_if_statement;
 	AST* else_statement;
 } IfStatement;
 
-AST* make_ast(int node_type, AST* left_node, AST* right_node);
+AST* make_ast(int node_type, AST* left_node, AST* right_node, int line_no);
 
-AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statement, AST* else_statement);
+AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statement, AST* else_statement, int line_no);
 
 
 typedef struct Function {
 	int node_type;
+	int line_no;
 	char* name;
 	AST* expr_list;
 } FunctionStatement;
 
-AST* make_function_call(char* name, AST* expr_list);
+AST* make_function_call(char* name, AST* expr_list, int line_no);
 
 ListBuffer* integrate_params(AST* node);
 
 typedef struct WhileStatement {
 	int node_type;
+	int line_no;
 	AST* condition;
 	AST* statements;
 } WhileStatement;
 
-AST* make_while_expression(AST* condition, AST* statements);
+AST* make_while_expression(AST* condition, AST* statements, int line_no);
 
 typedef struct DoLoopStatement {
 	int node_type;
+	int line_no;
 	AST* condition;
 	AST* statements;
 } DoLoopStatement;
 
-AST* make_do_loop_expression(AST* statements, AST* condition);
+AST* make_do_loop_expression(AST* statements, AST* condition, int line_no);
 
 typedef struct ForStatement {
 	int node_type;
+	int line_no;
 	AST* dim;
 	AST* until;
 	AST* step;
 	AST* statements;
 } ForStatement;
 
-AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements);
+AST* make_for_expression(AST* dim, AST* until, AST* step, AST* statements, int line_no);
 
 typedef struct FunctionDefineStatement {
 	int node_type;
+	int line_no;
 	AST* statements;
 	AST* arguments;
 	char* name;
 } FunctionDefineStatement;
 
-AST* make_function_define(char* name, AST* statements, AST* arguments);
+AST* make_sub_define(char* name, AST* statements, AST* arguments, int line_no);
+
+AST* make_function_define(char* name, AST* statements, AST* arguments, int line_no);
 
 typedef struct FunctionStackElement {
 	HashTable* local_vars;
@@ -203,39 +217,45 @@ FunctionStackElement* dup_new_func_stack_element();
 
 typedef struct ReturnStatement {
 	int node_type;
+	int line_no;
 	AST* return_expr;
 } ReturnStatement;
 
-AST* make_return(AST* expr);
+AST* make_return(AST* expr, int line_no);
 
 typedef struct BreakStatement {
 	int node_type;
+	int line_no;
 	AST* placeholder;
 	AST* placeholder2;
 } BreakStatement;
 
 typedef struct ContinueStatement {
 	int node_type;
+	int line_no;
 	AST* placeholder;
 	AST* placeholder2;
 } ContinueStatement;
 
 typedef struct FunctionArgumentDefinition {
 	int node_type;
+	int line_no;
 	AST* default_value;
 	AST* next_node;
 	char* arg_name;
 } FunctionArgumentDefinition;
 
-AST* make_function_arg(char* name, AST* default_value, AST* next_node);
+AST* make_function_arg(char* name, AST* default_value, AST* next_node, int line_no);
 
-AST* make_break();
-AST* make_continue();
+AST* make_break(int line_no);
+AST* make_continue(int line_no);
 
 ListBuffer* flatten_function_args(AST* node);
 
-void execute_function_header(ListBuffer* definitions, ListBuffer* values);
+void execute_function_header(ListBuffer* definitions, ListBuffer* values, AST* ast);
 
 RuntimeValue* execute(AST* ast);
+
+void raise_error(const char* msg, const AST* ast);
 
 #endif
