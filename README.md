@@ -15,7 +15,8 @@ Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定
 
 开发环境：
 
-- Ubuntu/GCC/Flex/Bison
+- Ubuntu >= 20.04.1
+- GCC/Flex/Bison
 - 如果有意愿，也容易移植到Windows平台、LLVM的Clang编译器等
 
 编译安装（Ubuntu）：
