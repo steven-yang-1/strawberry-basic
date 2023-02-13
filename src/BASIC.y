@@ -28,6 +28,7 @@
 %token FUNCTION ENDFUNCTION
 %token LINE_BREAK
 %token EXITSUB
+%token STR_CONCAT
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -226,6 +227,9 @@ expression:	NUMBER					{
 							}
 	|	expression '$' expression		{
 								$$ = make_ast('$', $1, $3, @1.first_line);
+							}
+	|	expression STR_CONCAT expression	{
+								$$ = make_ast(NODE_TYPE_STR_CONCAT, $1, $3, @1.first_line);
 							}
 	|	expression '+' expression		{
 								$$ = make_ast('+', $1, $3, @1.first_line);

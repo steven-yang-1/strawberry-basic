@@ -62,6 +62,9 @@ var_name	[_A-Za-z0-9]+
 "and"		{
 			return '&';
 		}
+"&"		{
+			return STR_CONCAT;
+		}
 "or"		{
 			return '|';
 		}
@@ -182,6 +185,7 @@ var_name	[_A-Za-z0-9]+
 			yylval.expr = (AST*) make_ast_string(new_text);
 			return STRING;
 		}
+"\'".*		{}
 [ \t]		;
 [\r]		;
 [\n]		{

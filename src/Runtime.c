@@ -457,24 +457,36 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) && runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == NODE_TYPE_BITAND) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) & runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == NODE_TYPE_BITOR) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) | runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '|') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) || runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '!') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -484,6 +496,9 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) ^ runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '<') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -492,6 +507,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_decimal(l) < runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) < runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '>') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -500,6 +518,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_decimal(l) > runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) > runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '$') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -510,16 +531,29 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_decimal(l) != runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) != runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '+') {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
-		if (l->runtime_type == C_STRING && r->runtime_type == C_STRING) {
-			return make_runtime_string(strcat(l->s_val, r->s_val));
-		} else if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
+		if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_decimal(runtime_as_decimal(l) + runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) + runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
+		}
+	} else if (ast->node_type == NODE_TYPE_STR_CONCAT) {
+		RuntimeValue* l = execute(ast->left_node);
+		RuntimeValue* r= execute(ast->right_node);
+		if (l->runtime_type == C_STRING && r->runtime_type == C_STRING) {
+			return make_runtime_string(strcat(l->s_val, r->s_val));
+		} else {
+			raise_error("\'&\' cannot concat two expressions which one of them is not String.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '-') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -528,6 +562,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_decimal(runtime_as_decimal(l) - runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) - runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '*') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -536,6 +573,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_decimal(runtime_as_decimal(l) * runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) * runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == '/') {
 		RuntimeValue* l = execute(ast->left_node);
@@ -548,6 +588,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_decimal(runtime_as_decimal(l) / runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) / runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == NODE_TYPE_GTE) {
 		RuntimeValue* l = execute(ast->left_node);
@@ -556,6 +599,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_decimal(l) >= runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) >= runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == NODE_TYPE_LTE) {
 		RuntimeValue* l = execute(ast->left_node);
@@ -564,6 +610,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_decimal(l) <= runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) <= runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == NODE_TYPE_EQ) {
 		RuntimeValue* l = execute(ast->left_node);
@@ -572,6 +621,9 @@ RuntimeValue* execute(AST* ast) {
 			return make_runtime_integer(runtime_as_decimal(l) == runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
 			return make_runtime_integer(runtime_as_integer(l) == runtime_as_integer(r));
+		} else {
+			raise_error("Type error.", ast);
+			exit(0);
 		}
 	} else if (ast->node_type == NODE_TYPE_MOD) {
 		RuntimeValue* l = execute(ast->left_node);

@@ -1,5 +1,8 @@
+' Test fundamental statements
+' @Author: Steven Yang
+
 Dim testNumber = 1
-REM testNumber = 1.2
+testNumber = 1.2
 
 PrintLine(testNumber)
 

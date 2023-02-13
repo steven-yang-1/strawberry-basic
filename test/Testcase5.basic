@@ -1,0 +1,4 @@
+' Test String Concat
+' @Author Steven Yang
+
+PrintLine("TEST" & "5") 'Output TEST5

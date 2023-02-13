@@ -1,3 +1,6 @@
+' Test Syntax Error Alert and Error Tracking
+' @Author Steven Yang
+
 Dim i = 2
 PrintLine(i)
 Abcde CCC
