@@ -23,6 +23,66 @@ var_name	[_A-Za-z0-9]+
 
 %%
 "rem".*	{}
+"class"	{
+			return CLASS;
+		}
+"extends"	{
+			return EXTENDS;
+		}
+"implements"	{
+			return IMPLEMENTS;
+		}
+"public"	{
+			return PUBLIC;
+		}
+"protected"	{
+			return PROTECTED;
+		}
+"private"	{
+			return PRIVATE;
+		}
+"static"	{
+			return STATIC;
+		}
+"property"	{
+			return PROPERTY;
+		}
+"trait"	{
+			return TRAIT;
+		}
+"end trait"	{
+			return END_TRAIT;
+		}
+"with"		{
+			return WITH;
+		}
+"namespace"	{
+			return NAMESPACE;
+		}
+"import"	{
+			return IMPORT;
+		}
+"end class"	{
+			return END_CLASS;
+		}
+"alias"	{
+			return ALIAS;
+		}
+"try"		{
+			return TRY;
+		}
+"catch"	{
+			return CATCH;
+		}
+"finally"	{
+			return FINALLY;
+		}
+"throw"	{
+			return THROW;
+		}
+"end try"	{
+			return END_TRY;
+		}
 "dim"		{
 			return DIM;
 		}

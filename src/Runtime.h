@@ -34,6 +34,17 @@
 #define NODE_TYPE_SUB 10027
 #define NODE_TYPE_EXIT_SUB 10028
 #define NODE_TYPE_STR_CONCAT 10029
+#define NODE_TYPE_CLASS 10030
+#define NODE_TYPE_CLASS_ATTR 10031
+#define NODE_TYPE_TRAIT_NAME 10032
+#define NODE_TYPE_CLASS_INNER_STATEMENT 10033
+#define NODE_TYPE_TRAIT_INNER_STATEMENT 10034
+#define NODE_TYPE_TRAIT 10035
+#define NODE_TYPE_LOCATE 10036
+#define NODE_TYPE_IMPORT 10037
+#define NODE_TYPE_NAMESPACE 10038
+#define NODE_TYPE_METHOD 10039
+#define NODE_TYPE_PROPERTY 10040
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -45,14 +56,27 @@
 #define C_CONTINUE 7
 #define C_SUB 8
 #define C_EXITSUB 9
+#define C_CLASS_DEFINE 10
+#define C_NAMESPACE 12
+
+#define ACC_MOD_PUBLIC 1
+#define ACC_MOD_PROTECTED 2
+#define ACC_MOD_PRIVATE 3
+
+typedef struct AST {
+	int node_type;
+	int line_no;
+	struct AST* left_node;
+	struct AST* right_node;
+} AST;
 
 typedef struct Var {
 	int node_type;
 	int line_no;
-	char* name;
+	AST* location;
 } Var;
 
-Var* make_var(char* name, int line_no);
+Var* make_var(AST* location, int line_no);
 
 typedef struct Constant {
 	int node_type;
@@ -63,6 +87,12 @@ typedef struct Constant {
 	int type;
 } Constant;
 
+typedef struct RuntimeFunction {
+	int runtime_type;
+	char* name;
+	ListBuffer* arguments;
+	AST* statements;
+} RuntimeFunction;
 
 typedef struct RuntimeValue {
 	int runtime_type;
@@ -71,16 +101,31 @@ typedef struct RuntimeValue {
 	char* s_val;
 	ListBuffer* list;
 	int is_return;
+	RuntimeFunction* function;
 } RuntimeValue;
 
 RuntimeValue* make_new_runtime_list_buffer();
 
 
+typedef struct RuntimeNamespace {
+	int runtime_type;
+	char* name;
+	HashTable* next_level;
+} RuntimeNamespace;
+
+
 typedef struct RuntimeEnvironment {
+	// Stack<RuntimeFunction>
 	Stack* call_stack;
+	// Stack<RuntimeValue>
 	HashTable* vars;
+	// Stack<RuntimeFunction>
 	HashTable* functions;
-	int current_line;
+	// HashTable<RuntimeClass>
+	HashTable* classes;
+	// Stack<String>
+	Stack* locate_stack;
+	RuntimeNamespace* current_namespace;
 } RuntimeEnvironment;
 
 struct RuntimeEnvironment* env;
@@ -113,13 +158,6 @@ RuntimeValue* make_runtime_break();
 
 RuntimeValue* make_runtime_continue();
 
-typedef struct AST {
-	int node_type;
-	int line_no;
-	struct AST* left_node;
-	struct AST* right_node;
-} AST;
-
 typedef struct Dimension {
 	int node_type;
 	int line_no;
@@ -133,12 +171,17 @@ typedef struct RuntimeFunctionArg {
 	RuntimeValue* default_value;
 } RuntimeFunctionArg;
 
-typedef struct RuntimeFunction {
-	int type;
+typedef struct RuntimeClass {
+	int runtime_type;
 	char* name;
-	ListBuffer* arguments;
-	AST* statements;
-} RuntimeFunction;
+	// HashTable<RuntimeValue>
+	HashTable* properties;
+	// HashTable<RuntimeFunction>
+	HashTable* methods;
+	char* super_class;
+	// LinkedList<String>
+	LinkedList* traits;
+} RuntimeClass;
 
 Dimension* var_make_null(char* var_name, int line_no);
 
@@ -163,11 +206,11 @@ AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statemen
 typedef struct Function {
 	int node_type;
 	int line_no;
-	char* name;
+	AST* location;
 	AST* expr_list;
 } FunctionStatement;
 
-AST* make_function_call(char* name, AST* expr_list, int line_no);
+AST* make_function_call(AST* location, AST* expr_list, int line_no);
 
 ListBuffer* integrate_params(AST* node);
 
@@ -252,6 +295,86 @@ AST* make_function_arg(char* name, AST* default_value, AST* next_node, int line_
 
 AST* make_break(int line_no);
 AST* make_continue(int line_no);
+
+typedef struct ClassDefinition {
+	int node_type;
+	int line_no;
+	char* class_name;
+	AST* class_attributes;
+	AST* class_body;
+} ClassDefinition;
+
+typedef struct ClassMethod {
+	int node_type;
+	int line_no;
+	int access_modifier;
+	int is_static;
+	AST* function_define;
+} ClassMethod;
+
+typedef struct ClassProperty {
+	int node_type;
+	int line_no;
+	int access_modifier;
+	int is_static;
+	AST* dim;
+} ClassProperty;
+
+typedef struct TraitImplementDefinition {
+	int node_type;
+	int line_no;
+	AST* next_node;
+	char* trait_name;
+} TraitImplementDefinition;
+
+typedef struct ClassAttrDefinition {
+	int node_type;
+	int line_no;
+	char* extend_class;
+	AST* trait_implement;
+} ClassAttrDefinition;
+
+typedef struct TraitDefinition {
+	int node_type;
+	int line_no;
+	AST* trait_implement;
+	AST* trait_body;
+	char* trait_name;
+} TraitDefinition;
+
+typedef struct Import {
+	int node_type;
+	int line_no;
+	char* alias;
+	AST* location;
+} Import;
+
+typedef struct Location {
+	int node_type;
+	int line_no;
+	AST* next_node;
+	char* name;
+} Location;
+
+RuntimeValue* call(RuntimeFunction* current_runtime_function, RuntimeValue* argument_list, AST* ast);
+
+AST* make_location(char* name, AST* next_node, int line_no);
+
+AST* make_class(char* class_name, AST* class_attributes, AST* class_body, int line_no);
+
+AST* make_class(char* class_name, AST* trait_implement, AST* class_body, int line_no);
+
+AST* make_trait_implement_definition(char* trait_name, AST* next_node, int line_no);
+
+AST* make_trait(char* trait_name, AST* trait_implement, AST* trait_body, int line_no);
+
+AST* make_class_attr(char* extend_class, AST* trait_implement, int line_no);
+
+AST* make_class_method(int access_modifier, int is_static, AST* function_define, int line_no);
+
+AST* make_class_property(int access_modifier, int is_static, AST* dim, int line_no);
+
+AST* make_import(char* alias, AST* location, int line_no);
 
 ListBuffer* flatten_function_args(AST* node);
 

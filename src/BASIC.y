@@ -11,6 +11,8 @@
 %union {
 	char* identifier;
 	struct AST* expr;
+	int access_modifier;
+	int is_static;
 }
 
 %token <expr> NUMBER
@@ -29,6 +31,13 @@
 %token LINE_BREAK
 %token EXITSUB
 %token STR_CONCAT
+%token CLASS EXTENDS IMPLEMENTS END_CLASS
+%token PUBLIC PROTECTED PRIVATE STATIC PROPERTY
+%token TRAIT END_TRAIT
+%token NAMESPACE IMPORT
+%token WITH
+%token ALIAS
+%token TRY CATCH FINALLY THROW END_TRY
 
 %left '&' '|' '^' '$'
 %left '<' '>'
@@ -62,6 +71,28 @@
 %type <expr> define_function
 %type <expr> _define_func_args
 
+%type <expr> namespace
+%type <expr> import
+%type <identifier> import_alias
+%type <expr> location
+%type <expr> _location
+%type <expr> class_definition
+%type <expr> class_attributes
+%type <expr> class_extends
+%type <expr> traits_impl
+%type <expr> define_trait_list
+%type <expr> _define_trait_list
+%type <expr> class_inner_statements
+%type <expr> _class_inner_statements
+%type <expr> class_method
+%type <access_modifier> access_modifier
+%type <is_static> method_static
+%type <expr> method_body
+%type <expr> class_property
+%type <expr> trait_definition
+%type <expr> trait_inner_statements
+%type <expr> _trait_inner_statements
+
 %%
 statements:	{$$ = NULL;}|_statements		{
 								execute($1);
@@ -75,6 +106,12 @@ statement:	VARIABLE_NAME assignment		{
 								$$ = make_redim($1, $2, @1.first_line);
 							}
 	|	expression				{
+								$$ = $1;
+							}
+	|	class_definition			{
+								$$ = $1;
+							}
+	|	trait_definition			{
 								$$ = $1;
 							}
 	|	if_statement				{
@@ -110,25 +147,158 @@ statement:	VARIABLE_NAME assignment		{
 	|	define_function			{
 								$$ = $1;
 							}
+	|	namespace				{
+								$$ = $1;
+							}
+	|	import					{
+								$$ = $1;
+							}
 	|	LINE_BREAK				{
 								$$ = make_ast(NODE_TYPE_LINE_BREAK, NULL, NULL, @1.first_line);
 							}
 	;
+
+/****************************************************
+* Object-oriented
+****************************************************/
+
+namespace:
+	NAMESPACE location { $$ = make_ast(NODE_TYPE_NAMESPACE, $2, NULL, @1.first_line); };
 	
+import:
+	IMPORT location import_alias { $$ = make_import($3, $2, @1.first_line); };
+
+import_alias:
+	{ $$=NULL; }
+	|	ALIAS VARIABLE_NAME
+	{
+		$$ = $2;
+	};
+
+location: VARIABLE_NAME _location
+	{
+		$$ = make_location($1, $2, @1.first_line);
+	};
+_location: { $$=NULL; }
+	|	'.' VARIABLE_NAME _location
+	{
+		$$ = make_location($2, $3, @1.first_line);
+	};
+
+class_definition:
+	CLASS VARIABLE_NAME class_attributes _class_inner_statements END_CLASS	
+	{
+		$$ = make_class($2, $3, $4, @1.first_line);
+	};
+	
+class_attributes:
+	class_extends traits_impl 
+	{
+		$$ = make_class_attr($1, $2, @1.first_line);
+	};
+	
+class_extends:
+	{ $$ = NULL; }
+	|	EXTENDS VARIABLE_NAME
+	{
+		$$ = $2;
+	};
+
+traits_impl:
+	{ $$ = NULL; }
+	|	IMPLEMENTS define_trait_list
+	{
+		$$ = $2;
+	};
+
+define_trait_list: { $$ = NULL; } |
+	VARIABLE_NAME _define_trait_list
+	{
+		$$ = make_trait_implement_definition($1, $2, @1.first_line);
+	};
+_define_trait_list: { $$ = NULL; } |
+	',' VARIABLE_NAME _define_trait_list	
+	{
+		$$ = make_trait_implement_definition($2, $3, @1.first_line);
+	};
+
+class_inner_statements:
+	class_method { $$ = $1; }
+	|	class_property { $$ = $1; };
+
+_class_inner_statements:
+	{ $$ = NULL; }
+	|	class_inner_statements _class_inner_statements
+	{
+		$$ = make_ast(NODE_TYPE_CLASS_INNER_STATEMENT, $1, $2, @1.first_line);
+	};
+
+class_method:
+	access_modifier method_static method_body
+	{
+		$$ = make_class_method($1, $2, $3, @1.first_line);
+	};
+
+access_modifier:
+	PUBLIC { $$ = ACC_MOD_PUBLIC; }
+	|	PROTECTED { $$ = ACC_MOD_PROTECTED; }
+	|	PRIVATE { $$ = ACC_MOD_PRIVATE; };
+
+method_static:
+	{ $$ = 0; };
+	|	STATIC { $$ = 1; };
+
+method_body:
+	sub_program { $$ = $1; }
+	|	define_function { $$ = $1; };
+
+class_property:
+	access_modifier method_static PROPERTY dimension
+	{
+		$$ = make_class_property($1, $2, $4, @1.first_line);
+	};
+
+/****************************************************
+* Object-oriented - TRAIT
+****************************************************/
+
+trait_definition:
+	TRAIT VARIABLE_NAME traits_impl _trait_inner_statements END_TRAIT
+	{
+		$$ = make_trait($2, $3, $4, @1.first_line);
+	};
+
+trait_inner_statements:
+	class_method { $$ = $1; }
+	|	class_property { $$ = $1; };
+
+_trait_inner_statements:
+	{ $$=NULL; }
+	|	trait_inner_statements _trait_inner_statements
+	{
+		$$ = make_ast(NODE_TYPE_TRAIT_INNER_STATEMENT, $1, $2, @1.first_line);
+	};
+
+/****************************************************
+* Object-oriented End
+****************************************************/
+
 dimension:
-	VARIABLE_NAME assignment			{
-								$$ = make_dim($1, $2, NULL, @1.first_line);
-							}
-	|	VARIABLE_NAME assignment ',' dimension			{
-											AST* node = $4;
-											node->node_type = NODE_TYPE_ASSIGN_VAR;
-											$$ = make_dim($1, $2, node, @1.first_line);
-										}
+	VARIABLE_NAME assignment				{
+									$$ = make_dim($1, $2, NULL, @1.first_line);
+								}
+	|	VARIABLE_NAME assignment ',' dimension	{
+									AST* node = $4;
+									node->node_type = NODE_TYPE_ASSIGN_VAR;
+									$$ = make_dim($1, $2, node, @1.first_line);
+								}
 	;
+
 sub_program:
-	SUB VARIABLE_NAME '(' define_func_args ')' _statements ENDSUB		{
-								$$ = make_sub_define($2, $6, $4, @1.first_line);
-							};
+	SUB VARIABLE_NAME '(' define_func_args ')' _statements ENDSUB
+	{
+		$$ = make_sub_define($2, $6, $4, @1.first_line);
+	};
 							
 define_function:
 	FUNCTION VARIABLE_NAME '(' define_func_args ')' _statements ENDFUNCTION	{
@@ -249,7 +419,7 @@ expression:	NUMBER					{
 	|	'(' expression ')'			{
 								$$ = make_ast(NODE_TYPE_PRIORITY, $2, NULL, @1.first_line);
 							}
-	|	VARIABLE_NAME _func_or_var		{
+	|	location _func_or_var			{
 								if ($2 == NULL) {
 									$$ = (AST*) make_var($1, @1.first_line);
 								} else if (((AST*)$2)->node_type == NODE_TYPE_EXPR_ITEM) {
@@ -305,13 +475,11 @@ int main()
 {
 	env = malloc(sizeof(RuntimeEnvironment) + 1);
 	env->call_stack = stack_init();
-	env->vars = hash_init(800);
+	env->vars = hash_init(100);
 	env->functions = hash_init(800);
-	env->current_line = 1;
+	env->classes = hash_init(800);
+	env->current_namespace = NULL;
+	env->locate_stack = stack_init();
 	yyparse();
-	hash_free(env->vars);
-	//hash_free(env->functions);
-	stack_free(env->call_stack);
-	free(env);
 	return 0;
 }

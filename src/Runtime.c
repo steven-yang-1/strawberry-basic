@@ -5,12 +5,15 @@
 #include "HashTable.h"
 #include "ListBuffer.h"
 
-Var* make_var(char* name, int line_no) {
+Var* make_var(AST* location, int line_no) {
 	Var* new_val = malloc(sizeof(Var) + 1);
 	new_val->node_type = NODE_TYPE_VAR;
 	new_val->line_no = line_no;
+	/*
 	new_val->name = (char*) malloc(sizeof(char) * strlen(name) + 1);
 	strcpy(new_val->name, name);
+	*/
+	new_val->location = location;
 	return new_val;
 }
 
@@ -209,12 +212,11 @@ AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statemen
 	return (AST*) new_val;
 }
 
-AST* make_function_call(char* name, AST* expr_list, int line_no) {
+AST* make_function_call(AST* location, AST* expr_list, int line_no) {
 	FunctionStatement* new_val = malloc(sizeof(FunctionStatement) + 1);
 	new_val->node_type = NODE_TYPE_FUNC;
 	new_val->line_no = line_no;
-	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
-	strcpy(new_val->name, name);
+	new_val->location = location;
 	new_val->expr_list = expr_list;
 	return (AST*) new_val;
 }
@@ -241,6 +243,67 @@ AST* make_sub_define(char* name, AST* statements, AST* arguments, int line_no) {
 	return (AST*) new_val;
 }
 
+AST* make_class(char* class_name, AST* class_attributes, AST* class_body, int line_no) {
+	ClassDefinition* new_val = malloc(sizeof(ClassDefinition) + 1);
+	new_val->node_type = NODE_TYPE_CLASS;
+	new_val->line_no = line_no;
+	new_val->class_name = malloc(sizeof(char) * strlen(class_name) + 1);
+	strcpy(new_val->class_name, class_name);
+	new_val->class_attributes = class_attributes;
+	new_val->class_body = class_body;
+	return (AST*) new_val;
+}
+
+AST* make_trait_implement_definition(char* trait_name, AST* next_node, int line_no) {
+	TraitImplementDefinition* new_val = malloc(sizeof(TraitImplementDefinition) + 1);
+	new_val->node_type = NODE_TYPE_TRAIT_NAME;
+	new_val->trait_name = malloc(sizeof(char) * strlen(trait_name) + 1);
+	strcpy(new_val->trait_name, trait_name);
+	new_val->next_node = next_node;
+	new_val->line_no = line_no;
+	return (AST*) new_val;
+}
+
+AST* make_class_attr(char* extend_class, AST* trait_implement, int line_no) {
+	ClassAttrDefinition* new_val = malloc(sizeof(ClassAttrDefinition) + 1);
+	new_val->node_type = NODE_TYPE_CLASS_ATTR;
+	new_val->line_no = line_no;
+	new_val->extend_class = malloc(sizeof(char) * strlen(extend_class) + 1);
+	strcpy(new_val->extend_class, extend_class);
+	new_val->trait_implement = trait_implement;
+	return (AST*) new_val;
+}
+
+AST* make_class_method(int access_modifier, int is_static, AST* function_define, int line_no) {
+	ClassMethod* new_val = malloc(sizeof(ClassMethod) + 1);
+	new_val->node_type = NODE_TYPE_METHOD;
+	new_val->access_modifier = access_modifier;
+	new_val->is_static = is_static;
+	new_val->function_define = function_define;
+	new_val->line_no = line_no;
+	return (AST*) new_val;
+}
+
+AST* make_class_property(int access_modifier, int is_static, AST* dim, int line_no) {
+	ClassProperty* new_val = malloc(sizeof(ClassProperty) + 1);
+	new_val->node_type = NODE_TYPE_PROPERTY;
+	new_val->access_modifier = access_modifier;
+	new_val->is_static = is_static;
+	new_val->dim = dim;
+	new_val->line_no = line_no;
+	return (AST*) new_val;
+}
+
+AST* make_import(char* alias, AST* location, int line_no) {
+	Import* new_val = malloc(sizeof(Import) + 1);
+	new_val->node_type = NODE_TYPE_IMPORT;
+	new_val->line_no = line_no;
+	new_val->alias = malloc(sizeof(char) * strlen(alias) + 1);
+	strcpy(new_val->alias, alias);
+	new_val->location = location;
+	return (AST*) new_val;
+}
+
 AST* make_function_define(char* name, AST* statements, AST* arguments, int line_no) {
 	FunctionDefineStatement* new_val = malloc(sizeof(FunctionDefineStatement) + 1);
 	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
@@ -249,6 +312,17 @@ AST* make_function_define(char* name, AST* statements, AST* arguments, int line_
 	new_val->line_no = line_no;
 	new_val->statements = statements;
 	new_val->arguments = arguments;
+	return (AST*) new_val;
+}
+
+AST* make_trait(char* trait_name, AST* trait_implement, AST* trait_body, int line_no) {
+	TraitDefinition* new_val = malloc(sizeof(TraitDefinition) + 1);
+	new_val->node_type = NODE_TYPE_TRAIT;
+	new_val->trait_name = malloc(sizeof(char) * strlen(trait_name) + 1);
+	strcpy(new_val->trait_name, trait_name);
+	new_val->trait_implement = trait_implement;
+	new_val->trait_body = trait_body;
+	new_val->line_no = line_no;
 	return (AST*) new_val;
 }
 
@@ -304,10 +378,18 @@ RuntimeValue* make_new_runtime_list_buffer() {
 	return new_val;
 }
 
+AST* make_location(char* name, AST* next_node, int line_no) {
+	Location* new_val = malloc(sizeof(Location) + 1);
+	new_val->node_type = NODE_TYPE_LOCATE;
+	new_val->line_no = line_no;
+	new_val->name = malloc(sizeof(char) * strlen(name) + 1);
+	strcpy(new_val->name, name);
+	new_val->next_node = next_node;
+	return (AST*) new_val;
+}
+
 RuntimeValue* execute(AST* ast) {
-	if (ast->node_type == NODE_TYPE_LINE_BREAK) {
-		env->current_line++;
-	} else if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
+	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
 		Dimension* dim = (Dimension*) ast;
 		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 		if (peak == NULL && hash_has_key(env->vars, dim->var_name)) {
@@ -351,9 +433,9 @@ RuntimeValue* execute(AST* ast) {
 		FunctionDefineStatement* function_statement = (FunctionDefineStatement*) ast;
 		RuntimeFunction* func = malloc(sizeof(RuntimeFunction) + 1);
 		if (ast->node_type == NODE_TYPE_FUNCTION_DEFINE) {
-			func->type = C_FUNCTION_DEFINE;
+			func->runtime_type = C_FUNCTION_DEFINE;
 		} else {
-			func->type = C_SUB;
+			func->runtime_type = C_SUB;
 		}
 		func->name = malloc(sizeof(char) * strlen(function_statement->name) + 1);
 		strcpy(func->name, function_statement->name);
@@ -640,9 +722,11 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == NODE_TYPE_FUNC) {
 		// Function call
 		FunctionStatement* functional = (FunctionStatement *)ast;
-		RuntimeValue* argument_list;
-		argument_list = execute(functional->expr_list);
-		if (!strcmp(functional->name, "Print")) {
+		RuntimeValue* argument_list = execute(functional->expr_list);
+		RuntimeValue* location_rt_value = execute(functional->location);
+//		list_buffer_dump(location_rt_value->list);
+		char* first_function_name = (char*) list_buffer_get(location_rt_value->list, 0);
+		if (!strcmp(first_function_name, "Print")) {
 			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
 			if (param1->runtime_type == C_STRING) {
 				printf("%s", param1->s_val);
@@ -656,7 +740,7 @@ RuntimeValue* execute(AST* ast) {
 				printf("System error.\n");
 			}
 			return NULL;
-		} else if (!strcmp(functional->name, "PrintLine")) {
+		} else if (!strcmp(first_function_name, "PrintLine")) {
 			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
 			if (param1->runtime_type == C_STRING) {
 				printf("%s\n", param1->s_val);
@@ -671,10 +755,13 @@ RuntimeValue* execute(AST* ast) {
 			}
 			return NULL;
 		} else {
+		
 			stack_push(env->call_stack, dup_new_func_stack_element());
-			RuntimeFunction* current_runtime_function = (RuntimeFunction*) hash_get(env->functions, functional->name);
+			RuntimeFunction* current_runtime_function =
+				(RuntimeFunction*) hash_get(env->functions, (char*)list_buffer_get(location_rt_value->list, 0));
+			
 			if (current_runtime_function == NULL) {
-				raise_error("The function or subroutine which you're finding does not defined.", ast);
+				raise_error("The function/subroutine/method which you're finding does not defined.", ast);
 				exit(0);
 			}
 			if (current_runtime_function->arguments->count > 0) {
@@ -684,7 +771,7 @@ RuntimeValue* execute(AST* ast) {
 			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
 			hash_free(popped_env->local_vars);
 			free(popped_env);
-			if (current_runtime_function->type == C_FUNCTION_DEFINE) {
+			if (current_runtime_function->runtime_type == C_FUNCTION_DEFINE) {
 				if (return_value == NULL) {
 					raise_error("Function must return a value.", ast);
 					exit(0);
@@ -702,6 +789,7 @@ RuntimeValue* execute(AST* ast) {
 		return value;
 	} else if (ast->node_type == NODE_TYPE_VAR) {
 		Var* var = (Var*)ast;
+		
 		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 		HashTable* from_env;
 		if (peak == NULL) {
@@ -709,15 +797,25 @@ RuntimeValue* execute(AST* ast) {
 		} else {
 			from_env = peak->local_vars;
 		}
-		RuntimeValue* fetched_var = hash_get(from_env, var->name);
-		if (peak != NULL && fetched_var == NULL) {
-			fetched_var = hash_get(env->vars, var->name);
-		}
-		if (fetched_var == NULL) {
-			raise_error("Undefined variable.", ast);
+		
+		RuntimeValue* rt_location = execute(var->location);
+		
+		if (rt_location->list->count == 1) {
+			RuntimeValue* fetched_var = (RuntimeValue*) hash_get(from_env, (char*)list_buffer_get(rt_location->list, 0));
+			if (peak != NULL && fetched_var == NULL) {
+				fetched_var = (RuntimeValue*) hash_get(env->vars, (char*)list_buffer_get(rt_location->list, 0));
+			}
+			if (fetched_var != NULL) {
+				return fetched_var;
+			} else {
+				raise_error("Undefined variable.", ast);
+				exit(0);
+			}
+		} else {
+			// for static property in class
+			raise_error("Not implemented.", ast);
 			exit(0);
 		}
-		return fetched_var;
 	} else if (ast->node_type == NODE_TYPE_WHILE_STATEMENT) {
 		WhileStatement* while_statement = (WhileStatement *)ast;
 		while (runtime_as_integer(execute(while_statement->condition))) {
@@ -822,6 +920,53 @@ RuntimeValue* execute(AST* ast) {
 		// ListBuffer<RuntimeFunctionArg>
 		value->list = flatten_function_args(ast);
 		return value;
+	} else if (ast->node_type == NODE_TYPE_LOCATE) {
+		Location* location = (Location*) ast;
+		char* node_name = location->name;
+		RuntimeValue* rt_location = make_new_runtime_list_buffer();
+		list_buffer_add(rt_location->list, node_name);
+		if (location->next_node != NULL) {
+			RuntimeValue* next_node_rt_value = execute(location->next_node);
+			list_buffer_concat(rt_location->list, next_node_rt_value->list);
+			return rt_location;
+		} else {
+			return rt_location;
+		}
+	} else if (ast->node_type == NODE_TYPE_NAMESPACE) {
+		// RuntimeValue<ListBuffer>
+		RuntimeValue* rt_location = execute(ast->left_node/* location */);
+		for (int i = 0; i < rt_location->list->count; i++) {
+			char* node_name = list_buffer_get(rt_location->list, i);
+			if (env->current_namespace == NULL) {	// first loop, at the top level
+				if (!hash_has_key(env->classes, node_name)) {
+					RuntimeNamespace* new_namespace = malloc(sizeof(RuntimeNamespace) + 1);
+					new_namespace->runtime_type = C_NAMESPACE;
+					new_namespace->name = malloc(sizeof(char) * strlen(node_name) + 1);
+					strcpy(new_namespace->name, node_name);
+					new_namespace->next_level = hash_init(120);
+					hash_put(env->classes, node_name, (void*) new_namespace);
+					env->current_namespace = new_namespace;
+				} else {
+					env->current_namespace = (RuntimeNamespace*) hash_get(env->classes, node_name);
+				}
+			} else {
+				if (!hash_has_key(env->current_namespace->next_level, node_name)) {
+					RuntimeNamespace* new_namespace = malloc(sizeof(RuntimeNamespace) + 1);
+					new_namespace->runtime_type = C_NAMESPACE;
+					new_namespace->name = malloc(sizeof(char) * strlen(node_name) + 1);
+					strcpy(new_namespace->name, node_name);
+					new_namespace->next_level = hash_init(120);
+					
+					hash_put(env->current_namespace->next_level, node_name, (void*) new_namespace);
+					env->current_namespace = new_namespace;
+				} else {
+					env->current_namespace = (RuntimeNamespace*) hash_get(env->current_namespace->next_level, node_name);
+				}
+			}
+		}
+	} else if (ast->node_type == NODE_TYPE_CLASS) {
+		ClassDefinition* class_definition = (ClassDefinition*) ast;
+		
 	}
 	return NULL;
 }
