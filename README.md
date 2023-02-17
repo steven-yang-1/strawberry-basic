@@ -12,7 +12,7 @@ Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定
 - 语法和教程请参考仓库中的最新版本用户手册pdf，该手册假定你至少已经粗略地学过微软公司的Visual Basic（或者.Net版）、TurboBASIC等其中一种BASIC的实现
 - BASIC语言是Beginners' All-purpose Symbolic Instruction Code的缩写，一般译为“初学者通用符号指令代码”，主打易学性和易用性
 - StrawberryBASIC语言是BASIC语言的方言，但大体上是一样的
-- 编译后只有70KB！
+- Ubuntu下编译后只有80KB！
 
 开发环境：
 
