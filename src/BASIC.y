@@ -334,7 +334,7 @@ while_statement:	WHILE expression _statements ENDWHILE					{
 do_loop_statement:	DO _statements LOOP WHILE expression		{
 										$$ = make_do_loop_expression($2, $5, @1.first_line);
 									};
-for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements NEXT {
+for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements next_statement {
 								Dimension* dim = make_dim($2, $4, NULL, @1.first_line);
 								AST* step;
 								if ($7 == NULL) {
@@ -345,6 +345,7 @@ for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _stat
 								}
 								$$ = make_for_expression((AST*)dim, $6, step, $8, @1.first_line);
 							};
+next_statement:	NEXT {} | NEXT VARIABLE_NAME	{};
 for_step:						{
 								$$ = NULL;
 							}

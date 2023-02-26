@@ -10,11 +10,11 @@ PrintLine("")
 
 For j = 10 To 0 Step -2
 	PrintLine(j)
-Next
+Next j
 
 For j = 10 To 0 Step -2
 	PrintLine(j)
-Next
+Next j
 
 Dim i = 0
 While i < 10

@@ -1,0 +1,10 @@
+' Testcase of Printing Elements
+' @Author Steven Yang
+
+For i = 1 To 5
+	For j = 1 To 5
+		Print(i)
+		Print(",")
+		PrintLine(j)
+	Next j
+Next i

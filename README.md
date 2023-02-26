@@ -1,5 +1,5 @@
 ## **StrawberryBASIC**
-ver 0.01a9
+ver 0.01a10
 
 ![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
@@ -34,7 +34,8 @@ Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定
 - ./BASIC < ../test/Testcase4.basic
 - ./BASIC < ../test/Testcase5.basic
 - ./BASIC < ../test/Testcase6.basic
+- ./BASIC < ../test/Testcase7.basic
 
-开发/手册/美术
+开发/手册/美术：
 
 - Steven Yang（杨泰然）@steven-yang-blue
