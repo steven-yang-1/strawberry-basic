@@ -3,7 +3,7 @@ ver 0.01a11
 
 ![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
-原创BASIC方言和解释器
+原创现代化编程语言StrawberryBASIC和它的解释器
 
 已经实现了基本表达式（算术/逻辑/比较运算）、赋值、重新赋值、If-ElseIf-Else语句、While循环、Do-Loop循环、For循环、
 Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定义函数、Return语句、Namespace声明命名空间、
