@@ -45,6 +45,7 @@
 #define NODE_TYPE_NAMESPACE 10038
 #define NODE_TYPE_METHOD 10039
 #define NODE_TYPE_PROPERTY 10040
+#define NODE_TYPE_PROPERTY_DIM 10041
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -58,6 +59,7 @@
 #define C_EXITSUB 9
 #define C_CLASS_DEFINE 10
 #define C_NAMESPACE 12
+#define C_TRAIT 13
 
 #define ACC_MOD_PUBLIC 1
 #define ACC_MOD_PROTECTED 2
@@ -92,6 +94,8 @@ typedef struct RuntimeFunction {
 	char* name;
 	ListBuffer* arguments;
 	AST* statements;
+	int access_modifier;
+	int is_static;
 } RuntimeFunction;
 
 typedef struct RuntimeValue {
@@ -113,6 +117,17 @@ typedef struct RuntimeNamespace {
 	HashTable* next_level;
 } RuntimeNamespace;
 
+typedef struct RuntimeClass {
+	int runtime_type;
+	char* name;
+	// HashTable<RuntimeValue>
+	HashTable* properties;
+	// HashTable<RuntimeFunction>
+	HashTable* methods;
+	char* super_class;
+	// LinkedList<String>
+	LinkedList* traits;
+} RuntimeClass;
 
 typedef struct RuntimeEnvironment {
 	// Stack<RuntimeFunction>
@@ -123,8 +138,7 @@ typedef struct RuntimeEnvironment {
 	HashTable* functions;
 	// HashTable<RuntimeClass>
 	HashTable* classes;
-	// Stack<String>
-	Stack* locate_stack;
+	RuntimeClass* current_building_class;
 	RuntimeNamespace* current_namespace;
 } RuntimeEnvironment;
 
@@ -171,17 +185,16 @@ typedef struct RuntimeFunctionArg {
 	RuntimeValue* default_value;
 } RuntimeFunctionArg;
 
-typedef struct RuntimeClass {
+/*typedef struct RuntimeTrait {
 	int runtime_type;
 	char* name;
 	// HashTable<RuntimeValue>
 	HashTable* properties;
 	// HashTable<RuntimeFunction>
 	HashTable* methods;
-	char* super_class;
 	// LinkedList<String>
 	LinkedList* traits;
-} RuntimeClass;
+} RuntimeTrait;*/
 
 Dimension* var_make_null(char* var_name, int line_no);
 
@@ -363,6 +376,8 @@ AST* make_location(char* name, AST* next_node, int line_no);
 AST* make_class(char* class_name, AST* class_attributes, AST* class_body, int line_no);
 
 AST* make_class(char* class_name, AST* trait_implement, AST* class_body, int line_no);
+
+void init_current_building_runtime_class();
 
 AST* make_trait_implement_definition(char* trait_name, AST* next_node, int line_no);
 

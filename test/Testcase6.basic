@@ -1,3 +1,30 @@
-' Testcase for Namespace
-Namespace Cn.StevenYang.Basic.A1.A2.A3
+' Testcase for Object-oriented I.
+Namespace System
 
+Trait Concatable Implements C, C2, C3
+	Public Function Concat(obj1, obj2)
+		Return "Not Implemented"
+	End Function
+End Trait
+
+Class String Inherits Any Implements Concatable
+
+	Protected Property property1 = "TEST"
+	
+	Public Sub CSString()
+		PrintLine(2)
+	End Sub
+	
+	Public Static Sub Test(test1, test2)
+		PrintLine(1)
+	End Sub
+	
+	Public Function Main(a)
+		Return 1
+	End Function
+	
+	Public Static Function Main2(b)
+		Return 2
+	End Function
+	
+End Class

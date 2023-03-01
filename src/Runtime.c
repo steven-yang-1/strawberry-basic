@@ -268,8 +268,12 @@ AST* make_class_attr(char* extend_class, AST* trait_implement, int line_no) {
 	ClassAttrDefinition* new_val = malloc(sizeof(ClassAttrDefinition) + 1);
 	new_val->node_type = NODE_TYPE_CLASS_ATTR;
 	new_val->line_no = line_no;
-	new_val->extend_class = malloc(sizeof(char) * strlen(extend_class) + 1);
-	strcpy(new_val->extend_class, extend_class);
+	if (extend_class == NULL) {
+		new_val->extend_class = NULL;
+	} else {
+		new_val->extend_class = malloc(sizeof(char) * strlen(extend_class) + 1);
+		strcpy(new_val->extend_class, extend_class);
+	}
 	new_val->trait_implement = trait_implement;
 	return (AST*) new_val;
 }
@@ -388,6 +392,11 @@ AST* make_location(char* name, AST* next_node, int line_no) {
 	return (AST*) new_val;
 }
 
+void init_current_building_runtime_class() {
+	env->current_building_class->properties = hash_init(40);
+	env->current_building_class->methods = hash_init(40);
+}
+
 RuntimeValue* execute(AST* ast) {
 	if (ast->node_type == NODE_TYPE_ASSIGN_VAR) {
 		Dimension* dim = (Dimension*) ast;
@@ -454,7 +463,15 @@ RuntimeValue* execute(AST* ast) {
 			raise_error("You cannot redefine a function or subroutine.", ast);
 			exit(0);
 		}
-		hash_put(env->functions, func->name, (void*) func);
+		if (env->current_building_class == NULL) {
+			hash_put(env->functions, func->name, (void*) func);
+		} else {		
+			RuntimeValue* return_value_with_function = malloc(sizeof(RuntimeValue) + 1);
+			return_value_with_function->runtime_type = func->runtime_type;
+			return_value_with_function->function = func;
+			
+			return return_value_with_function;
+		}
 	} else if (ast->node_type == NODE_TYPE_REASSIGN) {
 		Dimension* dim = (Dimension*) ast;
 		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
@@ -967,6 +984,123 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == NODE_TYPE_CLASS) {
 		ClassDefinition* class_definition = (ClassDefinition*) ast;
 		
+		RuntimeClass* runtime_class = (RuntimeClass*) malloc(sizeof(RuntimeClass) + 1);
+		runtime_class->runtime_type = C_CLASS_DEFINE;
+		runtime_class->name = malloc(sizeof(char) * strlen(class_definition->class_name) + 1);
+		strcpy(runtime_class->name, class_definition->class_name);
+		
+		env->current_building_class = runtime_class;
+		init_current_building_runtime_class();
+		
+		execute(class_definition->class_attributes);
+		execute(class_definition->class_body);
+		
+		hash_put(env->current_namespace->next_level, class_definition->class_name, runtime_class);
+	} else if (ast->node_type == NODE_TYPE_CLASS_ATTR) {
+		if (env->current_building_class == NULL) {
+			raise_error("System error.", ast);
+			exit(0);
+		}
+		ClassAttrDefinition* cls_attr_definition = (ClassAttrDefinition*) ast;
+		if (cls_attr_definition->extend_class != NULL) {
+			env->current_building_class->super_class = malloc(sizeof(char) * strlen(cls_attr_definition->extend_class) + 1);
+			strcpy(env->current_building_class->super_class, cls_attr_definition->extend_class);
+		}
+	} else if (ast->node_type == NODE_TYPE_METHOD) {
+		if (env->current_building_class == NULL) {
+			raise_error("Syntax error when defining method of class.", ast);
+			exit(0);
+		}
+		ClassMethod* class_method = (ClassMethod*) ast;
+		RuntimeValue* function = execute(class_method->function_define);
+		if (function->runtime_type != C_FUNCTION_DEFINE && function->runtime_type != C_SUB) {
+			raise_error("Syntax error when defining method of class.", ast);
+			exit(0);
+		}
+		function->function->access_modifier = class_method->access_modifier;
+		function->function->is_static = class_method->is_static;
+		if (env->current_building_class->runtime_type == C_TRAIT) {
+			hash_put(env->current_building_class->methods, function->function->name, function->function);
+		} else if (env->current_building_class->runtime_type == C_CLASS_DEFINE) {
+			hash_put(env->current_building_class->methods, function->function->name, function->function);
+		}
+	} else if (ast->node_type == NODE_TYPE_PROPERTY) {
+		if (env->current_building_class == NULL) {
+			raise_error("Syntax error when defining method of class.", ast);
+			exit(0);
+		}
+		ClassProperty* class_property = (ClassProperty*) ast;
+		Dimension* dimension = (Dimension*)class_property->dim;
+		dimension->node_type = NODE_TYPE_PROPERTY_DIM;
+		RuntimeValue* result_property = execute(class_property->dim);
+		class_property->access_modifier = class_property->access_modifier;
+		class_property->is_static = class_property->is_static;
+		hash_put(env->current_building_class->methods, dimension->var_name, result_property);
+	} else if (ast->node_type == NODE_TYPE_PROPERTY_DIM) {
+		Dimension* dim = (Dimension*) ast;
+		if (hash_has_key(env->current_building_class->properties, dim->var_name)) {
+			raise_error("The property of the class has been defined. Please rename it!", ast);
+			exit(0);
+		}
+		if (dim->node != NULL) {
+			RuntimeValue* value = execute(dim->node);
+			hash_put(env->current_building_class->properties, dim->var_name, value);
+		} else {
+			hash_put(env->current_building_class->properties, dim->var_name, make_runtime_null());
+		}
+		if (dim->next_dim != NULL) {
+			dim->next_dim->node_type = NODE_TYPE_PROPERTY_DIM;
+			execute(dim->next_dim);
+		}
+	} else if (ast->node_type == NODE_TYPE_TRAIT_NAME) {
+		// trait use
+		TraitImplementDefinition* trait_use = (TraitImplementDefinition*) ast;
+		LinkedList* list_traits = list_init();
+		TraitImplementDefinition* tmp_p = trait_use;
+		do {
+			list_add(list_traits, tmp_p->trait_name);
+			tmp_p = tmp_p->next_node;
+		} while (tmp_p != NULL);
+		env->current_building_class->traits = list_traits;
+	} else if (ast->node_type == NODE_TYPE_CLASS_INNER_STATEMENT) {
+		if (ast->left_node == NULL) {
+			return NULL;
+		}
+		AST* current_node = ast;
+		while (current_node != NULL) {
+			execute(current_node->left_node);
+			current_node = current_node->right_node;
+		}
+		return NULL;
+	} else if (ast->node_type == NODE_TYPE_TRAIT) {
+		TraitDefinition* trait_definition = (TraitDefinition*) ast;
+		
+		RuntimeClass* runtime_trait = (RuntimeClass*) malloc(sizeof(RuntimeClass) + 1);
+		runtime_trait->runtime_type = C_TRAIT;
+		runtime_trait->name = malloc(sizeof(char) * strlen(trait_definition->trait_name) + 1);
+		strcpy(runtime_trait->name, trait_definition->trait_name);
+		
+		env->current_building_class = (RuntimeClass*)runtime_trait;
+		init_current_building_runtime_class();
+		
+		if (trait_definition->trait_implement != NULL) {
+			execute(trait_definition->trait_implement);
+		}
+		if (trait_definition->trait_body != NULL) {
+			execute(trait_definition->trait_body);
+		}
+		
+		hash_put(env->current_namespace->next_level, trait_definition->trait_name, runtime_trait);
+	} else if (ast->node_type == NODE_TYPE_TRAIT_INNER_STATEMENT) {
+		if (ast->left_node == NULL) {
+			return NULL;
+		}
+		AST* current_node = ast;
+		while (current_node != NULL) {
+			execute(current_node->left_node);
+			current_node = current_node->right_node;
+		}
+		return NULL;
 	}
 	return NULL;
 }
@@ -997,7 +1131,7 @@ void execute_function_header(ListBuffer* definitions, ListBuffer* values, AST* a
 		if (arg->default_value == NULL) {
 			hash_put(peak->local_vars, arg->name, list_buffer_get(values, i));
 		} else {
-			hash_put(peak->local_vars, arg->name, arg->default_value);		
+			hash_put(peak->local_vars, arg->name, arg->default_value);
 		}
 	}
 }

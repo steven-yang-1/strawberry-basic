@@ -26,8 +26,8 @@ var_name	[_A-Za-z0-9]+
 "class"	{
 			return CLASS;
 		}
-"extends"	{
-			return EXTENDS;
+"inherits"	{
+			return INHERITS;
 		}
 "implements"	{
 			return IMPLEMENTS;
@@ -245,6 +245,7 @@ var_name	[_A-Za-z0-9]+
 			yylval.expr = (AST*) make_ast_string(new_text);
 			return STRING;
 		}
+"_"[ \t\r\n]*	{}
 "\'".*		{}
 [ \t]		;
 [\r]		;

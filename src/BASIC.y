@@ -31,7 +31,7 @@
 %token LINE_BREAK
 %token EXITSUB
 %token STR_CONCAT
-%token CLASS EXTENDS IMPLEMENTS END_CLASS
+%token CLASS INHERITS IMPLEMENTS END_CLASS
 %token PUBLIC PROTECTED PRIVATE STATIC PROPERTY
 %token TRAIT END_TRAIT
 %token NAMESPACE IMPORT
@@ -78,8 +78,8 @@
 %type <expr> _location
 %type <expr> class_definition
 %type <expr> class_attributes
-%type <expr> class_extends
-%type <expr> traits_impl
+%type <identifier> class_extends
+%type <identifier> traits_impl
 %type <expr> define_trait_list
 %type <expr> _define_trait_list
 %type <expr> class_inner_statements
@@ -192,14 +192,14 @@ class_definition:
 	};
 	
 class_attributes:
-	class_extends traits_impl 
+	class_extends traits_impl
 	{
 		$$ = make_class_attr($1, $2, @1.first_line);
 	};
 	
 class_extends:
 	{ $$ = NULL; }
-	|	EXTENDS VARIABLE_NAME
+	|	INHERITS VARIABLE_NAME
 	{
 		$$ = $2;
 	};
@@ -224,7 +224,8 @@ _define_trait_list: { $$ = NULL; } |
 
 class_inner_statements:
 	class_method { $$ = $1; }
-	|	class_property { $$ = $1; };
+	|	class_property { $$ = $1; }
+	|	LINE_BREAK;
 
 _class_inner_statements:
 	{ $$ = NULL; }
@@ -270,7 +271,9 @@ trait_definition:
 
 trait_inner_statements:
 	class_method { $$ = $1; }
-	|	class_property { $$ = $1; };
+	|	class_property { $$ = $1; }
+	|	LINE_BREAK
+	;
 
 _trait_inner_statements:
 	{ $$=NULL; }
@@ -480,7 +483,7 @@ int main()
 	env->functions = hash_init(800);
 	env->classes = hash_init(800);
 	env->current_namespace = NULL;
-	env->locate_stack = stack_init();
+	env->current_building_class = NULL;
 	yyparse();
 	return 0;
 }
