@@ -16,7 +16,7 @@
 #define NODE_TYPE_ELSE 10008
 #define NODE_TYPE_STATEMENT 10009
 #define NODE_TYPE_EXPR_ITEM 10010
-#define NODE_TYPE_FUNC 10012
+#define NODE_TYPE_FUNC_CALL 10012
 #define NODE_TYPE_VAR 10013
 #define NODE_TYPE_REASSIGN 10014
 #define NODE_TYPE_EQ 10015
@@ -46,6 +46,9 @@
 #define NODE_TYPE_METHOD 10039
 #define NODE_TYPE_PROPERTY 10040
 #define NODE_TYPE_PROPERTY_DIM 10041
+#define NODE_TYPE_NEW_OBJECT 10042
+#define NODE_TYPE_ACCESSOR 10043
+#define NODE_TYPE_SET_ATTR 10044
 
 #define C_INT 0
 #define C_DECIMAL 1
@@ -60,6 +63,8 @@
 #define C_CLASS_DEFINE 10
 #define C_NAMESPACE 12
 #define C_TRAIT 13
+#define C_LONG 14
+#define C_NEW_OBJECT 15
 
 #define ACC_MOD_PUBLIC 1
 #define ACC_MOD_PROTECTED 2
@@ -83,10 +88,13 @@ Var* make_var(AST* location, int line_no);
 typedef struct Constant {
 	int node_type;
 	int line_no;
-	int i_val;
-	double d_val;
-	char* s_val;
 	int type;
+	union {
+		int i_val;
+		double d_val;
+		char* s_val;
+		long l_val;
+	} value;
 } Constant;
 
 typedef struct RuntimeFunction {
@@ -98,25 +106,6 @@ typedef struct RuntimeFunction {
 	int is_static;
 } RuntimeFunction;
 
-typedef struct RuntimeValue {
-	int runtime_type;
-	int i_val;
-	double d_val;
-	char* s_val;
-	ListBuffer* list;
-	int is_return;
-	RuntimeFunction* function;
-} RuntimeValue;
-
-RuntimeValue* make_new_runtime_list_buffer();
-
-
-typedef struct RuntimeNamespace {
-	int runtime_type;
-	char* name;
-	HashTable* next_level;
-} RuntimeNamespace;
-
 typedef struct RuntimeClass {
 	int runtime_type;
 	char* name;
@@ -124,10 +113,49 @@ typedef struct RuntimeClass {
 	HashTable* properties;
 	// HashTable<RuntimeFunction>
 	HashTable* methods;
+	// HashTable<RuntimeValue>
+	HashTable* shared_properties;
+	// HashTable<RuntimeFunction>
+	HashTable* shared_methods;
 	char* super_class;
 	// LinkedList<String>
 	LinkedList* traits;
 } RuntimeClass;
+
+typedef struct RuntimeNamespace {
+	int runtime_type;
+	char* name;
+	HashTable* next_level;
+	int is_root;
+} RuntimeNamespace;
+
+typedef struct RuntimeObject {
+	int runtime_type;
+	char* class_name;
+	RuntimeClass* p_runtime_class;
+	RuntimeNamespace* in_namespace;
+	ListBuffer* path;
+	// HashTable<RuntimeValue>
+	HashTable* data;
+} RuntimeObject;
+
+typedef struct RuntimeValue {
+	int runtime_type;
+	union {
+		int i_val;
+		double d_val;
+		char* s_val;
+		long l_val;
+		ListBuffer* list;
+		RuntimeFunction* function;
+		RuntimeClass* klass;
+		RuntimeNamespace* domain_namespace;
+		RuntimeObject* object;
+	} value;
+	int is_return;
+} RuntimeValue;
+
+RuntimeValue* make_new_runtime_list_buffer();
 
 typedef struct RuntimeEnvironment {
 	// Stack<RuntimeFunction>
@@ -137,12 +165,15 @@ typedef struct RuntimeEnvironment {
 	// Stack<RuntimeFunction>
 	HashTable* functions;
 	// HashTable<RuntimeClass>
-	HashTable* classes;
+	// HashTable* classes;
 	RuntimeClass* current_building_class;
 	RuntimeNamespace* current_namespace;
+	RuntimeNamespace* root_namespace;
+	Stack* namespace_stack;
+	HashTable* imported_files;
 } RuntimeEnvironment;
 
-struct RuntimeEnvironment* env;
+RuntimeEnvironment* env;
 
 Constant* make_ast_integer(int i_val);
 
@@ -166,6 +197,8 @@ RuntimeValue* make_runtime_decimal(double d_val);
 
 RuntimeValue* make_runtime_string(char* s_val);
 
+RuntimeValue* make_runtime_long(long l_val);
+
 RuntimeValue* make_runtime_null();
 
 RuntimeValue* make_runtime_break();
@@ -176,8 +209,10 @@ typedef struct Dimension {
 	int node_type;
 	int line_no;
 	char* var_name;
+	AST* location;
 	AST* node;
 	AST* next_dim;
+	int shared;
 } Dimension;
 
 typedef struct RuntimeFunctionArg {
@@ -185,20 +220,9 @@ typedef struct RuntimeFunctionArg {
 	RuntimeValue* default_value;
 } RuntimeFunctionArg;
 
-/*typedef struct RuntimeTrait {
-	int runtime_type;
-	char* name;
-	// HashTable<RuntimeValue>
-	HashTable* properties;
-	// HashTable<RuntimeFunction>
-	HashTable* methods;
-	// LinkedList<String>
-	LinkedList* traits;
-} RuntimeTrait;*/
-
 Dimension* var_make_null(char* var_name, int line_no);
 
-AST* make_dim(char* var_name, AST* node, AST* next_dim, int line_no);
+AST* make_dim(AST* location, char* var_name, AST* node, AST* next_dim, int line_no);
 
 AST* make_redim(char* var_name, AST* node, int line_no);
 
@@ -215,7 +239,6 @@ AST* make_ast(int node_type, AST* left_node, AST* right_node, int line_no);
 
 AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statement, AST* else_statement, int line_no);
 
-
 typedef struct Function {
 	int node_type;
 	int line_no;
@@ -224,6 +247,8 @@ typedef struct Function {
 } FunctionStatement;
 
 AST* make_function_call(AST* location, AST* expr_list, int line_no);
+
+AST* make_accessor(AST* left_node, char* attribute_name, AST* arguments, int line_no);
 
 ListBuffer* integrate_params(AST* node);
 
@@ -269,10 +294,20 @@ AST* make_sub_define(char* name, AST* statements, AST* arguments, int line_no);
 AST* make_function_define(char* name, AST* statements, AST* arguments, int line_no);
 
 typedef struct FunctionStackElement {
+	// HashTable<RuntimeValue>
 	HashTable* local_vars;
+	union {
+		RuntimeObject* object;
+		RuntimeClass* klass;
+	} oop_info;
+	int invoke_method; // 0 is invoke from object, 1 is invoke from class. 2 is neither.
 } FunctionStackElement;
 
 FunctionStackElement* dup_new_func_stack_element();
+
+FunctionStackElement* dup_new_func_stack_element_object(RuntimeObject* object);
+
+FunctionStackElement* dup_new_func_stack_element_class(RuntimeClass* klass);
 
 typedef struct ReturnStatement {
 	int node_type;
@@ -303,6 +338,14 @@ typedef struct FunctionArgumentDefinition {
 	AST* next_node;
 	char* arg_name;
 } FunctionArgumentDefinition;
+
+typedef struct Accessor {
+	int node_type;
+	int line_no;
+	AST* left_node;
+	char* attribute_name;
+	AST* arguments;
+} Accessor;
 
 AST* make_function_arg(char* name, AST* default_value, AST* next_node, int line_no);
 
@@ -369,7 +412,12 @@ typedef struct Location {
 	char* name;
 } Location;
 
-RuntimeValue* call(RuntimeFunction* current_runtime_function, RuntimeValue* argument_list, AST* ast);
+typedef struct NewObject {
+	int node_type;
+	int line_no;
+	AST* class_location;
+	AST* arguments;
+} NewObject;
 
 AST* make_location(char* name, AST* next_node, int line_no);
 
@@ -380,6 +428,8 @@ AST* make_class(char* class_name, AST* trait_implement, AST* class_body, int lin
 void init_current_building_runtime_class();
 
 AST* make_trait_implement_definition(char* trait_name, AST* next_node, int line_no);
+
+AST* make_new_object(AST* location, AST* arguments, int line_no);
 
 AST* make_trait(char* trait_name, AST* trait_implement, AST* trait_body, int line_no);
 

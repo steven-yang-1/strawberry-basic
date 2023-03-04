@@ -1,0 +1,25 @@
+Namespace Test
+
+Class Student
+
+	Public Property id
+	Public Property name
+	
+	Public Sub New(id, name)
+		Me.id = id
+		Me.name = name
+	End Sub
+	
+	Public Sub Print()
+		PrintLine("Student ID:    " & CStr(Me.id))
+		PrintLine("Student Name:  " & CStr(Me.name))
+	End Sub
+
+	Public Shared Function Instance()
+		Return instance
+	End Function
+End Class
+
+Dim student1 = Student.Instance().Print()
+'student1.Print()
+

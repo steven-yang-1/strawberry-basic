@@ -14,7 +14,7 @@ Function Multiply(a, b)
 End Function
 
 Function Divide(a, b)
-	If b == 0 Then
+	If b = 0 Then
 		Return "Not a number."
 	End If
 	Return a / b

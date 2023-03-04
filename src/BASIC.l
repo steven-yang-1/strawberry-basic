@@ -23,6 +23,9 @@ var_name	[_A-Za-z0-9]+
 
 %%
 "rem".*	{}
+"new"		{
+			return NEW_OBJECT;
+		}
 "class"	{
 			return CLASS;
 		}
@@ -41,8 +44,8 @@ var_name	[_A-Za-z0-9]+
 "private"	{
 			return PRIVATE;
 		}
-"static"	{
-			return STATIC;
+"shared"	{
+			return SHARED;
 		}
 "property"	{
 			return PROPERTY;

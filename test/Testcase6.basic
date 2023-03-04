@@ -1,30 +1,37 @@
 ' Testcase for Object-oriented I.
-Namespace System
+Namespace Cn.StevenYang.Controller.SuperHigh.SoLong
 
-Trait Concatable Implements C, C2, C3
-	Public Function Concat(obj1, obj2)
-		Return "Not Implemented"
-	End Function
-End Trait
-
-Class String Inherits Any Implements Concatable
-
-	Protected Property property1 = "TEST"
+Class Test
+	Public Shared Property a1 = 123
 	
-	Public Sub CSString()
-		PrintLine(2)
+	Public Property c1 = 5
+	Public Property c2
+
+	Public Sub New(value1)
+		PrintLine(value1)
 	End Sub
 	
-	Public Static Sub Test(test1, test2)
-		PrintLine(1)
+	Public Sub TryPrint(value)
+		PrintLine(value)
 	End Sub
 	
-	Public Function Main(a)
-		Return 1
-	End Function
-	
-	Public Static Function Main2(b)
-		Return 2
-	End Function
-	
+	Public Shared Sub PrintL1(value)
+		PrintLine(value)
+	End Sub
 End Class
+
+Cn.StevenYang.Controller.SuperHigh.SoLong.Test.a1 = 211
+PrintLine(Test.a1)
+Cn.StevenYang.Controller.SuperHigh.SoLong.Test.PrintL1("Test")
+
+New Cn.StevenYang.Controller.SuperHigh.SoLong.Test("TEST2")
+
+PrintLine((New Cn.StevenYang.Controller.SuperHigh.SoLong.Test("TEST1")).c1)
+
+(New Cn.StevenYang.Controller.SuperHigh.SoLong.Test("TEST1")).TryPrint(666)
+
+PrintLine((New Test(12).c2))
+
+Dim test = New Test(111)
+
+test.TryPrint(123)

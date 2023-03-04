@@ -8,6 +8,8 @@
 	static double errline;
 %}
 
+%define parse.error verbose
+
 %union {
 	char* identifier;
 	struct AST* expr;
@@ -32,21 +34,25 @@
 %token EXITSUB
 %token STR_CONCAT
 %token CLASS INHERITS IMPLEMENTS END_CLASS
-%token PUBLIC PROTECTED PRIVATE STATIC PROPERTY
+%token PUBLIC PROTECTED PRIVATE SHARED PROPERTY
 %token TRAIT END_TRAIT
 %token NAMESPACE IMPORT
 %token WITH
 %token ALIAS
 %token TRY CATCH FINALLY THROW END_TRY
+%token FILE_END
+%token NEW_OBJECT
 
 %left '&' '|' '^' '$'
 %left '<' '>'
-%right '!'
+%nonassoc '!'
 
 %left '+' '-'
 %left '*' '/'
 
 %left ASSIGN;
+
+%precedence '.'
 
 %type <expr> _assignment;
 %type <expr> assignment;
@@ -70,7 +76,6 @@
 %type <expr> define_func_args
 %type <expr> define_function
 %type <expr> _define_func_args
-
 %type <expr> namespace
 %type <expr> import
 %type <identifier> import_alias
@@ -92,6 +97,8 @@
 %type <expr> trait_definition
 %type <expr> trait_inner_statements
 %type <expr> _trait_inner_statements
+%type <identifier> function_name
+%type <expr> dot_follow
 
 %%
 statements:	{$$ = NULL;}|_statements		{
@@ -102,11 +109,16 @@ _statements:	{$$ = NULL;}|statement _statements	{
 								$$ = make_ast(NODE_TYPE_STATEMENT, $1, $2, @1.first_line);
 							};
 
-statement:	VARIABLE_NAME assignment		{
-								$$ = make_redim($1, $2, @1.first_line);
-							}
-	|	expression				{
+statement:	expression				{
 								$$ = $1;
+							}
+	|	location ASSIGN expression		{
+								Location* location = (Location*) $1;
+								if (location->next_node != NULL) {
+									$$ = make_dim($1, NULL, $3, NULL, @1.first_line);
+								} else {
+									$$ = make_redim(location->name, $3, @1.first_line);
+								}
 							}
 	|	class_definition			{
 								$$ = $1;
@@ -247,7 +259,7 @@ access_modifier:
 
 method_static:
 	{ $$ = 0; };
-	|	STATIC { $$ = 1; };
+	|	SHARED { $$ = 1; };
 
 method_body:
 	sub_program { $$ = $1; }
@@ -285,26 +297,25 @@ _trait_inner_statements:
 /****************************************************
 * Object-oriented End
 ****************************************************/
-
 dimension:
 	VARIABLE_NAME assignment				{
-									$$ = make_dim($1, $2, NULL, @1.first_line);
+									$$ = make_dim(NULL, $1, $2, NULL, @1.first_line);
 								}
 	|	VARIABLE_NAME assignment ',' dimension	{
 									AST* node = $4;
 									node->node_type = NODE_TYPE_ASSIGN_VAR;
-									$$ = make_dim($1, $2, node, @1.first_line);
+									$$ = make_dim(NULL, $1, $2, node, @1.first_line);
 								}
 	;
 
 sub_program:
-	SUB VARIABLE_NAME '(' define_func_args ')' _statements ENDSUB
+	SUB function_name '(' define_func_args ')' _statements ENDSUB
 	{
 		$$ = make_sub_define($2, $6, $4, @1.first_line);
 	};
 							
 define_function:
-	FUNCTION VARIABLE_NAME '(' define_func_args ')' _statements ENDFUNCTION	{
+	FUNCTION function_name '(' define_func_args ')' _statements ENDFUNCTION	{
 												$$ = make_function_define($2, $6, $4, @1.first_line);
 											};
 define_func_args: {$$=NULL;} |
@@ -338,7 +349,7 @@ do_loop_statement:	DO _statements LOOP WHILE expression		{
 										$$ = make_do_loop_expression($2, $5, @1.first_line);
 									};
 for_statement:		FOR VARIABLE_NAME ASSIGN expression TO expression for_step _statements next_statement {
-								Dimension* dim = make_dim($2, $4, NULL, @1.first_line);
+								Dimension* dim = make_dim(NULL, $2, $4, NULL, @1.first_line);
 								AST* step;
 								if ($7 == NULL) {
 									// default step
@@ -354,19 +365,19 @@ for_step:						{
 							}
 	|	STEP expression				{
 								$$ = $2;
-							}
+							};
 expression:	NUMBER					{
 								$$ = $1;
 							}
 	|	'-' NUMBER				{
 								if (((Constant *)$2)->type == C_INT) {
-									((Constant *)$2)->i_val = -(((Constant *)$2)->i_val);
+									((Constant *)$2)->value.i_val = -(((Constant *)$2)->value.i_val);
 								} else if (((Constant *)$2)->type == C_DECIMAL) {
-									((Constant *)$2)->d_val = -(((Constant *)$2)->d_val);
+									((Constant *)$2)->value.d_val = -(((Constant *)$2)->value.d_val);
 								}
 								$$ = $2;
 							}
-	|	expression EQ expression		{
+	|	expression ASSIGN expression		{
 								$$ = make_ast(NODE_TYPE_EQ, $1, $3, @1.first_line);
 							}
 	|	expression BITAND expression		{
@@ -420,23 +431,34 @@ expression:	NUMBER					{
 	|	expression '%' expression		{
 								$$ = make_ast(NODE_TYPE_MOD, $1, $3, @1.first_line);
 							}
-	|	'(' expression ')'			{
-								$$ = make_ast(NODE_TYPE_PRIORITY, $2, NULL, @1.first_line);
-							}
-	|	location _func_or_var			{
-								if ($2 == NULL) {
-									$$ = (AST*) make_var($1, @1.first_line);
-								} else if (((AST*)$2)->node_type == NODE_TYPE_EXPR_ITEM) {
-									$$ = make_function_call($1, $2, @1.first_line);
-								}
+	|	location				{
+								$$ = (AST*) make_var($1, @1.first_line);
 							}
 	|	STRING					{
 								$$ = $1;
+							}
+	|	NEW_OBJECT location '(' expr_list ')'	{
+								$$ = make_new_object($2, $4, @1.first_line);
+							}
+	|	location '(' expr_list ')'		{
+								$$ = make_function_call($1, $3, @1.first_line);
+							}
+	|	expression dot_follow			{
+								Accessor* from_dot_follow = (Accessor*) $2;
+								from_dot_follow->left_node = $1;
+								$$ = (AST*) from_dot_follow;
+							}
+	|	'(' expression ')'			{
+								$$ = make_ast(NODE_TYPE_PRIORITY, $2, NULL, @1.first_line);
 							}
 	|	LINE_BREAK				{
 								$$ = make_ast(NODE_TYPE_LINE_BREAK, NULL, NULL, @1.first_line);
 							}
 	;
+	
+dot_follow:	'.' function_name _func_or_var	{
+								$$ = make_accessor(NULL, $2, $3, @1.first_line);
+							};
 
 _func_or_var:						{
 								$$ = NULL;
@@ -474,16 +496,33 @@ _assignment:	expression				{
 								$$ = $1;
 							}
 	;
+function_name:		NEW_OBJECT			{
+								$$ = "New";
+							}
+	|		VARIABLE_NAME			{
+								$$ = $1;
+							};
 %%
 int main()
 {
-	env = malloc(sizeof(RuntimeEnvironment) + 1);
+	env = (RuntimeEnvironment*) malloc(sizeof(RuntimeEnvironment) + 1);
 	env->call_stack = stack_init();
-	env->vars = hash_init(100);
-	env->functions = hash_init(800);
-	env->classes = hash_init(800);
+	env->vars = hash_init(60);
+	env->functions = hash_init(60);
+	
+	RuntimeNamespace* root_namespace = malloc(sizeof(RuntimeNamespace) + 1);
+	root_namespace->runtime_type = C_NAMESPACE;
+	root_namespace->name = "Root";
+	root_namespace->next_level = hash_init(55);
+	root_namespace->is_root = 1;
+	env->root_namespace = root_namespace;
+	
 	env->current_namespace = NULL;
 	env->current_building_class = NULL;
+	
+	env->namespace_stack = stack_init();
+	env->imported_files = hash_init(100);
+	
 	yyparse();
 	return 0;
 }

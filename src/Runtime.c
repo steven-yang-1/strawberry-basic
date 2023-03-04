@@ -4,15 +4,12 @@
 #include <string.h>
 #include "HashTable.h"
 #include "ListBuffer.h"
+#include "./itoa/itoa.h"
 
 Var* make_var(AST* location, int line_no) {
 	Var* new_val = malloc(sizeof(Var) + 1);
 	new_val->node_type = NODE_TYPE_VAR;
 	new_val->line_no = line_no;
-	/*
-	new_val->name = (char*) malloc(sizeof(char) * strlen(name) + 1);
-	strcpy(new_val->name, name);
-	*/
 	new_val->location = location;
 	return new_val;
 }
@@ -25,7 +22,7 @@ Constant* make_ast_integer(int i_val) {
 	}
 	new_val->node_type = NODE_TYPE_CONSTANT;
 	new_val->type = C_INT;
-	new_val->i_val = i_val;
+	new_val->value.i_val = i_val;
 	return new_val;
 }
 
@@ -37,7 +34,7 @@ Constant* make_ast_decimal(double d_val) {
 	}
 	new_val->node_type = NODE_TYPE_CONSTANT;
 	new_val->type = C_DECIMAL;
-	new_val->d_val = d_val;
+	new_val->value.d_val = d_val;
 	return new_val;
 }
 
@@ -49,8 +46,8 @@ Constant* make_ast_string(char* s_val) {
 	}
 	new_val->node_type = NODE_TYPE_CONSTANT;
 	new_val->type = C_STRING;
-	new_val->s_val = malloc(sizeof(char) * strlen(s_val) + 1);
-	strcpy(new_val->s_val, s_val);
+	new_val->value.s_val = malloc(sizeof(char) * strlen(s_val) + 1);
+	strcpy(new_val->value.s_val, s_val);
 	return new_val;
 }
 
@@ -61,7 +58,7 @@ RuntimeValue* make_runtime_integer(int i_val) {
 		exit(0);
 	}
 	new_val->runtime_type = C_INT;
-	new_val->i_val = i_val;
+	new_val->value.i_val = i_val;
 	new_val->is_return = 0;
 	return new_val;
 }
@@ -73,7 +70,7 @@ RuntimeValue* make_runtime_decimal(double d_val) {
 		exit(0);
 	}
 	new_val->runtime_type = C_DECIMAL;
-	new_val->d_val = d_val;
+	new_val->value.d_val = d_val;
 	new_val->is_return = 0;
 	return new_val;
 }
@@ -85,8 +82,20 @@ RuntimeValue* make_runtime_string(char* s_val) {
 		exit(0);
 	}
 	new_val->runtime_type = C_STRING;
-	new_val->s_val = (char *) malloc(sizeof(char) * strlen(s_val) + 1);
-	strcpy(new_val->s_val, s_val);
+	new_val->value.s_val = (char *) malloc(sizeof(char) * strlen(s_val) + 1);
+	strcpy(new_val->value.s_val, s_val);
+	new_val->is_return = 0;
+	return new_val;
+}
+
+RuntimeValue* make_runtime_long(long l_val) {
+	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
+	if (new_val == NULL) {
+		printf("System error");
+		exit(0);
+	}
+	new_val->runtime_type = C_LONG;
+	new_val->value.l_val = l_val;
 	new_val->is_return = 0;
 	return new_val;
 }
@@ -132,33 +141,33 @@ char* new_string(char* str) {
 
 int dump_numeric_as_integer(Constant* constant) {
 	if (constant->type == C_INT) {
-		return constant->i_val;
+		return constant->value.i_val;
 	} else if (constant->type == C_DECIMAL) {
-		return (int)(constant->d_val);
+		return (int)(constant->value.d_val);
 	}
 }
 
 double dump_numeric_as_decimal(Constant* constant) {
 	if (constant->type == C_INT) {
-		return (double)(constant->i_val);
+		return (double)(constant->value.i_val);
 	} else if (constant->type == C_DECIMAL) {
-		return constant->d_val;
+		return constant->value.d_val;
 	}
 }
 
 int runtime_as_integer(RuntimeValue* value) {
 	if (value->runtime_type == C_INT) {
-		return value->i_val;
+		return value->value.i_val;
 	} else if (value->runtime_type == C_DECIMAL) {
-		return (int)(value->d_val);
+		return (int)(value->value.d_val);
 	}
 }
 
 double runtime_as_decimal(RuntimeValue* value) {
 	if (value->runtime_type == C_INT) {
-		return (double)(value->i_val);
+		return (double)(value->value.i_val);
 	} else if (value->runtime_type == C_DECIMAL) {
-		return value->d_val;
+		return value->value.d_val;
 	}
 }
 
@@ -169,16 +178,23 @@ Dimension* var_make_null(char* var_name, int line_no) {
 	//new_block->runtime_type = "null";
 	new_block->var_name = var_name;
 	new_block->next_dim = NULL;
+	new_block->shared = 0;
 	return new_block;
 }
 
-AST* make_dim(char* var_name, AST* node, AST* next_dim, int line_no) {
+AST* make_dim(AST* location, char* var_name, AST* node, AST* next_dim, int line_no) {
 	Dimension* new_block = (Dimension*) malloc(sizeof(Dimension) + 1);
-	new_block->node_type = NODE_TYPE_ASSIGN_VAR;
+	if (var_name == NULL) {
+		new_block->node_type = NODE_TYPE_SET_ATTR;
+	} else {
+		new_block->node_type = NODE_TYPE_ASSIGN_VAR;
+	}
 	new_block->line_no = line_no;
 	new_block->var_name = var_name;
+	new_block->location = location;
 	new_block->node = node;
 	new_block->next_dim = next_dim;
+	new_block->shared = 0;
 	return (AST*) new_block;
 }
 
@@ -187,8 +203,10 @@ AST* make_redim(char* var_name, AST* node, int line_no) {
 	new_block->node_type = NODE_TYPE_REASSIGN;
 	new_block->line_no = line_no;
 	new_block->var_name = var_name;
+	new_block->location = NULL;
 	new_block->node = node;
 	new_block->next_dim = NULL;
+	new_block->shared = 0;
 	return (AST*) new_block;
 }
 
@@ -214,7 +232,7 @@ AST* make_if_expression(AST* condition, AST* if_statement, AST* else_if_statemen
 
 AST* make_function_call(AST* location, AST* expr_list, int line_no) {
 	FunctionStatement* new_val = malloc(sizeof(FunctionStatement) + 1);
-	new_val->node_type = NODE_TYPE_FUNC;
+	new_val->node_type = NODE_TYPE_FUNC_CALL;
 	new_val->line_no = line_no;
 	new_val->location = location;
 	new_val->expr_list = expr_list;
@@ -261,6 +279,15 @@ AST* make_trait_implement_definition(char* trait_name, AST* next_node, int line_
 	strcpy(new_val->trait_name, trait_name);
 	new_val->next_node = next_node;
 	new_val->line_no = line_no;
+	return (AST*) new_val;
+}
+
+AST* make_new_object(AST* location, AST* arguments, int line_no) {
+	NewObject* new_val = malloc(sizeof(NewObject) + 1);
+	new_val->node_type = NODE_TYPE_NEW_OBJECT;
+	new_val->line_no = line_no;
+	new_val->class_location = location;
+	new_val->arguments = arguments;
 	return (AST*) new_val;
 }
 
@@ -342,6 +369,41 @@ FunctionStackElement* dup_new_func_stack_element() {
 	HashTable* new_table = malloc(sizeof(HashTable) + 1);
 	new_table = hash_init(var_env_pt->pool_size);
 	new_val->local_vars = new_table;
+	new_val->invoke_method = 2;
+	return new_val;
+}
+
+FunctionStackElement* dup_new_func_stack_element_object(RuntimeObject* object) {
+	FunctionStackElement* new_val = malloc(sizeof(FunctionStackElement) + 1);
+	FunctionStackElement* peak = stack_peak(env->call_stack);
+	HashTable* var_env_pt;
+	if (peak == NULL) {
+		var_env_pt = env->vars;
+	} else {
+		var_env_pt = peak;
+	}
+	HashTable* new_table = malloc(sizeof(HashTable) + 1);
+	new_table = hash_init(var_env_pt->pool_size);
+	new_val->local_vars = new_table;
+	new_val->oop_info.object = object;
+	new_val->invoke_method = 0;
+	return new_val;
+}
+
+FunctionStackElement* dup_new_func_stack_element_class(RuntimeClass* klass) {
+	FunctionStackElement* new_val = malloc(sizeof(FunctionStackElement) + 1);
+	FunctionStackElement* peak = stack_peak(env->call_stack);
+	HashTable* var_env_pt;
+	if (peak == NULL) {
+		var_env_pt = env->vars;
+	} else {
+		var_env_pt = peak;
+	}
+	HashTable* new_table = malloc(sizeof(HashTable) + 1);
+	new_table = hash_init(var_env_pt->pool_size);
+	new_val->local_vars = new_table;
+	new_val->oop_info.klass = klass;
+	new_val->invoke_method = 1;
 	return new_val;
 }
 
@@ -378,7 +440,7 @@ AST* make_continue(int line_no) {
 RuntimeValue* make_new_runtime_list_buffer() {
 	RuntimeValue* new_val = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
 	new_val->runtime_type = C_LIST_BUFFER;
-	new_val->list = list_buffer_init();
+	new_val->value.list = list_buffer_init();
 	return new_val;
 }
 
@@ -392,9 +454,79 @@ AST* make_location(char* name, AST* next_node, int line_no) {
 	return (AST*) new_val;
 }
 
+AST* make_accessor(AST* left_node, char* attribute_name, AST* arguments, int line_no) {
+	Accessor* new_val = (Accessor*) malloc(sizeof(Accessor) + 1);
+	new_val->node_type = NODE_TYPE_ACCESSOR;
+	new_val->line_no = line_no;
+	new_val->left_node = left_node;
+	new_val->attribute_name = malloc(sizeof(char) * strlen(attribute_name) + 1);
+	strcpy(new_val->attribute_name, attribute_name);
+	new_val->arguments = arguments;
+	return (AST*) new_val;
+}
+
 void init_current_building_runtime_class() {
-	env->current_building_class->properties = hash_init(40);
-	env->current_building_class->methods = hash_init(40);
+	if (env->current_building_class->properties == NULL) {
+		env->current_building_class->properties = hash_init(40);
+	}
+	if (env->current_building_class->shared_properties == NULL) {
+		env->current_building_class->shared_properties = hash_init(40);
+	}
+	if (env->current_building_class->methods == NULL) {
+		env->current_building_class->methods = hash_init(40);
+	}
+	if (env->current_building_class->shared_methods == NULL) {
+		env->current_building_class->shared_methods = hash_init(40);
+	}
+}
+
+RuntimeClass* find_as_runtime_class(ListBuffer* location, AST* ast) {
+	RuntimeNamespace* current_namespace = env->current_namespace;
+	
+	for (int i = 0; i < location->count; i++) {
+		char* node_name = list_buffer_get(location, i);
+		if (hash_has_key(current_namespace->next_level, node_name)) {
+			RuntimeNamespace* name_space_or_class = (RuntimeNamespace*) hash_get(current_namespace->next_level, node_name);
+			if (name_space_or_class->runtime_type == C_NAMESPACE && i < location->count - 1) {
+			 	current_namespace = name_space_or_class;
+			} else if (name_space_or_class->runtime_type == C_CLASS_DEFINE && i == location->count - 1) {
+				return (RuntimeClass*) name_space_or_class;
+			} else {
+				raise_error("System error.", ast);
+			}
+		} else {
+			break;
+		}
+	}
+	
+	current_namespace = env->root_namespace;
+	
+	for (int i = 0; i < location->count; i++) {
+		char* node_name = list_buffer_get(location, i);
+		if (hash_has_key(current_namespace->next_level, node_name)) {
+			RuntimeNamespace* name_space_or_class = (RuntimeNamespace*) hash_get(current_namespace->next_level, node_name);
+			if (name_space_or_class->runtime_type == C_NAMESPACE && i < location->count - 1) {
+			 	current_namespace = name_space_or_class;
+			} else if (name_space_or_class->runtime_type == C_CLASS_DEFINE && i == location->count - 1) {
+				return (RuntimeClass*) name_space_or_class;
+			} else {
+				raise_error("System error.", ast);
+				exit(0);
+			}
+		} else {
+			break;
+		}
+	}
+	/*
+	char* node_name = list_buffer_get(location, 0);
+	
+	if (hash_has_key(env->classes, node_name)) {
+		return (RuntimeClass*) hash_get(env->classes, node_name);
+	}
+	*/
+	
+	raise_error("Cannot find the specified class.", ast);
+	exit(0);
 }
 
 RuntimeValue* execute(AST* ast) {
@@ -454,7 +586,7 @@ RuntimeValue* execute(AST* ast) {
 		if (function_statement->arguments != NULL) {
 			args_list = execute(function_statement->arguments);
 			if (args_list != NULL) {
-				func->arguments = args_list->list;
+				func->arguments = args_list->value.list;
 			}
 		} else {
 			func->arguments = list_buffer_init();
@@ -465,10 +597,10 @@ RuntimeValue* execute(AST* ast) {
 		}
 		if (env->current_building_class == NULL) {
 			hash_put(env->functions, func->name, (void*) func);
-		} else {		
+		} else {
 			RuntimeValue* return_value_with_function = malloc(sizeof(RuntimeValue) + 1);
 			return_value_with_function->runtime_type = func->runtime_type;
-			return_value_with_function->function = func;
+			return_value_with_function->value.function = func;
 			
 			return return_value_with_function;
 		}
@@ -504,12 +636,131 @@ RuntimeValue* execute(AST* ast) {
 				return null_value;
 			}
 		}
+	} else if (ast->node_type == NODE_TYPE_SET_ATTR) {
+		Dimension* dimension = (Dimension*) ast;
+		if (dimension->location == NULL) {
+			raise_error("System error..", ast);
+			exit(0);
+		}
+		RuntimeValue* location_rt = execute(dimension->location);
+		ListBuffer* location = location_rt->value.list;
+		RuntimeClass* current_object = NULL;
+		RuntimeValue* set_object_rt_value = NULL;
+		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+		for (int i = 0; i < location->count;) {
+			char* current_node_name = (char*) list_buffer_get(location, i);
+			if (current_object == NULL) {
+				if (hash_has_key(env->current_namespace->next_level, current_node_name)) {
+					current_object = env->current_namespace; // RuntimeNamespace/RuntimeClass
+				} else if (hash_has_key(env->root_namespace->next_level, current_node_name)) {
+					current_object = env->root_namespace; // RuntimeNamespace/RuntimeClass
+				} /*else if (hash_has_key(env->classes, current_node_name)) {
+					current_object = hash_get(env->classes, current_node_name); // RuntimeClass
+				}*/ else if (peak != NULL && peak->invoke_method == 0) {
+					// set properties from object
+					current_object = (RuntimeObject*)(peak->oop_info.object);	// RuntimeObject
+				} else {
+					raise_error("Cannot find specified namespace or class.", ast);
+					exit(0);
+				}
+			} else if (current_object->runtime_type == C_NAMESPACE) {
+				if (hash_has_key(((RuntimeNamespace*)current_object)->next_level, current_node_name)) {
+					RuntimeClass* compute_next_obj = hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+					if (compute_next_obj == C_NAMESPACE) {
+						current_object = (RuntimeNamespace*) hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+					} else {
+						current_object = (RuntimeClass*) hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+					}
+					i++;
+				} else {
+					raise_error("Cannot find specified namespace.", ast);
+					exit(0);
+				}
+			} else if (current_object->runtime_type == C_CLASS_DEFINE) {
+				if (hash_has_key(((RuntimeClass*)current_object)->shared_properties, current_node_name)) {
+					set_object_rt_value = (RuntimeObject*) hash_get(((RuntimeClass*)current_object)->shared_properties, current_node_name);
+					break;
+				} else {
+					raise_error("Cannot find specified property.", ast);
+					exit(0);
+				}
+			} else if (current_object->runtime_type == C_NEW_OBJECT) {
+				if (hash_has_key(((RuntimeObject*)current_object)->data, current_node_name)) {
+					RuntimeValue* property = hash_get(((RuntimeObject*)current_object)->data, current_node_name);
+					if (property->runtime_type == C_INT) {
+						set_object_rt_value = property;
+					} else if (property->runtime_type == C_DECIMAL) {
+						set_object_rt_value = property;
+					} else if (property->runtime_type == C_STRING) {
+						set_object_rt_value = property;
+					} else if (property->runtime_type == C_LONG) {
+						set_object_rt_value = property;
+					} else if (property->runtime_type == C_NEW_OBJECT) {
+						current_object = property;
+						set_object_rt_value = property;
+						i++;
+						continue;
+					} else if (property->runtime_type == C_NULL) {
+						set_object_rt_value = property;
+					} else {
+						raise_error("System error!", ast);
+						exit(0);
+					}
+					i++;
+					break;
+				} else {
+					raise_error("Undefined element of an object.", ast);
+					exit(0);
+				}
+			} else {
+				raise_error("error", ast);
+				exit(0);
+			}
+		}
+		
+		if (set_object_rt_value == NULL) {
+			raise_error("Cannot locate given path.", ast);
+			exit(0);
+		}
+		
+		RuntimeValue* eval_value = execute(dimension->node);
+		
+		// clone
+		if (eval_value->runtime_type == C_INT) {
+			RuntimeValue* p = set_object_rt_value;
+			p->runtime_type = eval_value->runtime_type;
+			p->value.i_val = eval_value->value.i_val;
+		} else if (eval_value->runtime_type == C_DECIMAL) {
+			RuntimeValue* p = set_object_rt_value;
+			p->runtime_type = eval_value->runtime_type;
+			p->value.d_val = eval_value->value.d_val;
+		} else if (eval_value->runtime_type == C_STRING) {
+			RuntimeValue* p = set_object_rt_value;
+			p->runtime_type = eval_value->runtime_type;
+			p->value.s_val = eval_value->value.s_val;
+			p->value.s_val = malloc(sizeof(char) * strlen(eval_value->value.s_val) + 1);
+			strcpy(p->value.s_val, eval_value);
+		} else if (eval_value->runtime_type == C_LONG) {
+			RuntimeValue* p = set_object_rt_value;
+			p->runtime_type = eval_value->runtime_type;
+			p->value.l_val = eval_value->value.l_val;
+		} else if (eval_value->runtime_type == C_NEW_OBJECT) {
+			RuntimeValue* p = set_object_rt_value;
+			p->runtime_type = eval_value->runtime_type;
+			p->value.object = eval_value->value.object;
+		}
 	} else if (ast->node_type == NODE_TYPE_CONSTANT) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
 		value->runtime_type = ((Constant *)ast)->type;
-		value->i_val = ((Constant *)ast)->i_val;
-		value->d_val = ((Constant *)ast)->d_val;
-		value->s_val = ((Constant *)ast)->s_val;
+		if (value->runtime_type == C_INT) {
+			value->value.i_val = ((Constant *)ast)->value.i_val;
+		} else if (value->runtime_type == C_DECIMAL) {
+			value->value.d_val = ((Constant *)ast)->value.d_val;
+		} else if (value->runtime_type == C_STRING) {
+			value->value.s_val = ((Constant *)ast)->value.s_val;
+		} else if (value->runtime_type == C_LONG) {
+			value->value.l_val = ((Constant *)ast)->value.l_val;
+		}
 		value->is_return = 0;
 		return value;
 	} else if (ast->node_type == NODE_TYPE_IF_STATEMENT) {
@@ -625,7 +876,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_STRING && r->runtime_type == C_STRING) {
-			return make_runtime_integer(!strcmp(l->s_val, r->s_val));
+			return make_runtime_integer(!strcmp(l->value.s_val, r->value.s_val));
 		} else if (l->runtime_type == C_DECIMAL || r->runtime_type == C_DECIMAL) {
 			return make_runtime_integer(runtime_as_decimal(l) != runtime_as_decimal(r));
 		} else if (l->runtime_type == C_INT && r->runtime_type == C_INT) {
@@ -649,7 +900,7 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* l = execute(ast->left_node);
 		RuntimeValue* r= execute(ast->right_node);
 		if (l->runtime_type == C_STRING && r->runtime_type == C_STRING) {
-			return make_runtime_string(strcat(l->s_val, r->s_val));
+			return make_runtime_string(strcat(l->value.s_val, r->value.s_val));
 		} else {
 			raise_error("\'&\' cannot concat two expressions which one of them is not String.", ast);
 			exit(0);
@@ -736,21 +987,28 @@ RuntimeValue* execute(AST* ast) {
 		} else {
 			return make_runtime_integer(runtime_as_integer(l) / runtime_as_integer(r));
 		}
-	} else if (ast->node_type == NODE_TYPE_FUNC) {
+	} else if (ast->node_type == NODE_TYPE_FUNC_CALL) {
 		// Function call
-		FunctionStatement* functional = (FunctionStatement *)ast;
-		RuntimeValue* argument_list = execute(functional->expr_list);
-		RuntimeValue* location_rt_value = execute(functional->location);
-//		list_buffer_dump(location_rt_value->list);
-		char* first_function_name = (char*) list_buffer_get(location_rt_value->list, 0);
+		FunctionStatement* function_statement = (FunctionStatement *)ast;
+		
+		RuntimeValue* location_rt = execute(function_statement->location);
+		ListBuffer* location = location_rt->value.list;
+		RuntimeValue* argument_list = execute(function_statement->expr_list);
+		
+		char* first_function_name = list_buffer_get(location, 0);
+		
+		RuntimeClass* set_object_rt_value = NULL;
+		
+		RuntimeValue* param1 = list_buffer_get(argument_list->value.list, 0);
+		
 		if (!strcmp(first_function_name, "Print")) {
-			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
+			RuntimeValue* param1 = list_buffer_get(argument_list->value.list, 0);
 			if (param1->runtime_type == C_STRING) {
-				printf("%s", param1->s_val);
+				printf("%s", param1->value.s_val);
 			} else if (param1->runtime_type == C_INT) {
-				printf("%d", param1->i_val);
+				printf("%d", param1->value.i_val);
 			} else if (param1->runtime_type == C_DECIMAL) {
-				printf("%f", param1->d_val);
+				printf("%f", param1->value.d_val);
 			} else if (param1->runtime_type == C_NULL) {
 				printf("NULL");
 			} else {
@@ -758,31 +1016,121 @@ RuntimeValue* execute(AST* ast) {
 			}
 			return NULL;
 		} else if (!strcmp(first_function_name, "PrintLine")) {
-			RuntimeValue* param1 = list_buffer_get(argument_list->list, 0);
 			if (param1->runtime_type == C_STRING) {
-				printf("%s\n", param1->s_val);
+				printf("%s\n", param1->value.s_val);
 			} else if (param1->runtime_type == C_INT) {
-				printf("%d\n", param1->i_val);
+				printf("%d\n", param1->value.i_val);
 			} else if (param1->runtime_type == C_DECIMAL) {
-				printf("%f\n", param1->d_val);
+				printf("%f\n", param1->value.d_val);
 			} else if (param1->runtime_type == C_NULL) {
-				printf("NULL\n");
+				printf("Null\n");
 			} else {
-				printf("System error.\n");
+				raise_error("System error.", ast);
+				exit(0);
 			}
 			return NULL;
+		} else if (!strcmp(first_function_name, "CStr")) {
+			RuntimeValue* result = make_runtime_string("");
+			if (param1->runtime_type == C_STRING) {
+				result->value.s_val = malloc(sizeof(char) * strlen(param1->value.s_val) + 1);
+				strcpy(result->value.s_val, param1->value.s_val);
+			} else if (param1->runtime_type == C_INT) {
+				result->value.s_val = malloc(sizeof(char) * 16 + 1);
+				ultoa(result->value.s_val, param1->value.i_val);
+			} else if (param1->runtime_type == C_NULL) {
+			} else {
+				raise_error("System error.", ast);
+				exit(0);
+			}
+			return result;
+		} else if (!strcmp(first_function_name, "Chr")) {
+			if (param1->runtime_type == C_INT) {
+				char ch[1] = {(char)(param1->value.i_val)};
+				RuntimeValue* result = make_runtime_string(ch);
+				return result;
+			} else {
+				raise_error("Arguments type error.", ast);
+				exit(0);
+			}
 		} else {
-		
-			stack_push(env->call_stack, dup_new_func_stack_element());
+			RuntimeClass* current_object = NULL;
+			FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+			for (int i = 0; i < location->count;) {
+				char* current_node_name = (char*) list_buffer_get(location, i);
+				if (current_object == NULL) {
+					if (env->current_namespace != NULL && hash_has_key(env->current_namespace->next_level, current_node_name)) {
+						current_object = env->current_namespace; // RuntimeNamespace/RuntimeClass
+					} else if (hash_has_key(env->root_namespace->next_level, current_node_name)) {
+						current_object = env->root_namespace; // RuntimeNamespace/RuntimeClass
+					} /*else if (hash_has_key(env->classes, current_node_name)) {
+						current_object = hash_get(env->classes, current_node_name); // RuntimeClass
+					}*/ else if (peak != NULL && peak->invoke_method == 0) {
+						// preprare for using methods in the object.
+						current_object = peak->oop_info.object;	// RuntimeObject
+					} else if (peak == NULL && hash_has_key(env->vars, current_node_name)) {
+						current_object = (RuntimeValue*) hash_get(env->vars, current_node_name);	// RuntimeValue
+						i++;
+					} else if (hash_has_key(env->functions, current_node_name)) { // call a function
+						set_object_rt_value = hash_get(env->functions, current_node_name);
+						break;
+					} else {
+						raise_error("Cannot find specified namespace or class.", ast);
+						exit(0);
+					}
+				} else if (current_object->runtime_type == C_NAMESPACE) {
+					if (hash_has_key(((RuntimeNamespace*)current_object)->next_level, current_node_name)) {
+						RuntimeClass* compute_next_obj = hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+						if (compute_next_obj == C_NAMESPACE) {
+							current_object = (RuntimeNamespace*) hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+						} else {
+							current_object = (RuntimeClass*) hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+						}
+						i++;
+					} else {
+						raise_error("Cannot find specified namespace.", ast);
+						exit(0);
+					}
+				} else if (current_object->runtime_type == C_CLASS_DEFINE) {
+					if (hash_has_key(((RuntimeClass*)current_object)->shared_methods, current_node_name)) {
+						set_object_rt_value = (RuntimeFunction*) hash_get(((RuntimeClass*)current_object)->shared_methods, current_node_name);
+						//break;
+					} else {
+						raise_error("Cannot find specified shared method.", ast);
+						exit(0);
+					}
+				} else if (current_object->runtime_type == C_NEW_OBJECT) {
+					if (hash_has_key(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->p_runtime_class->methods, current_node_name)) {
+						set_object_rt_value = (RuntimeFunction*) hash_get(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->p_runtime_class->methods, current_node_name);
+						//break;
+					} else {
+						raise_error("Cannot find specified shared method.", ast);
+						exit(0);
+					}
+				} else {
+					raise_error("error", ast);
+					exit(0);
+				}
+			}
+			
+			if (set_object_rt_value == NULL) {
+				raise_error("Cannot find specified method or shared method.", ast);
+				exit(0);
+			}
+			
+			if (current_object != NULL && current_object->runtime_type == C_NEW_OBJECT) {
+				stack_push(env->call_stack, dup_new_func_stack_element_object(current_object));
+			} else {
+				stack_push(env->call_stack, dup_new_func_stack_element());
+			}
 			RuntimeFunction* current_runtime_function =
-				(RuntimeFunction*) hash_get(env->functions, (char*)list_buffer_get(location_rt_value->list, 0));
+				(RuntimeFunction*) set_object_rt_value;
 			
 			if (current_runtime_function == NULL) {
 				raise_error("The function/subroutine/method which you're finding does not defined.", ast);
 				exit(0);
 			}
 			if (current_runtime_function->arguments->count > 0) {
-				execute_function_header(current_runtime_function->arguments, argument_list->list, ast);
+				execute_function_header(current_runtime_function->arguments, argument_list->value.list, ast);
 			}
 			RuntimeValue* return_value = execute(current_runtime_function->statements);
 			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
@@ -799,28 +1147,95 @@ RuntimeValue* execute(AST* ast) {
 				exit(0);
 			}
 		}
+		
 	} else if (ast->node_type == NODE_TYPE_EXPR_ITEM) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
 		value->runtime_type = C_LIST_BUFFER;
-		value->list = integrate_params(ast);
+		value->value.list = integrate_params(ast);
 		return value;
 	} else if (ast->node_type == NODE_TYPE_VAR) {
-		Var* var = (Var*)ast;
+		Var* var = (Var*) ast;
 		
-		FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
-		HashTable* from_env;
-		if (peak == NULL) {
-			from_env = env->vars;
-		} else {
-			from_env = peak->local_vars;
-		}
+		RuntimeValue* location_rt = execute(var->location);
+		ListBuffer* location = location_rt->value.list;
 		
-		RuntimeValue* rt_location = execute(var->location);
+		if (location->count == 1) {
 		
-		if (rt_location->list->count == 1) {
-			RuntimeValue* fetched_var = (RuntimeValue*) hash_get(from_env, (char*)list_buffer_get(rt_location->list, 0));
+			char* var_name = (char*) list_buffer_get(location, 0);
+			if (env->current_namespace != NULL) {
+				if (hash_has_key(env->current_namespace->next_level, var_name)) {
+					RuntimeValue* rt = hash_get(env->current_namespace->next_level, var_name);
+					if (rt->runtime_type == C_CLASS_DEFINE) {
+						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+						rt_value->runtime_type = C_CLASS_DEFINE;
+						rt_value->value.klass = (RuntimeClass*) rt;
+						rt_value->is_return = 0;
+						return rt_value;
+					} else if (rt->runtime_type == C_NAMESPACE) {
+						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+						rt_value->runtime_type = C_NAMESPACE;
+						rt_value->value.domain_namespace = (RuntimeNamespace*) rt;
+						rt_value->is_return = 0;
+						return rt_value;
+					} else if (rt->runtime_type == C_NEW_OBJECT) {
+						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+						rt_value->runtime_type = C_NEW_OBJECT;
+						rt_value->value.object = (RuntimeObject*) rt;
+						rt_value->is_return = 0;
+						return rt_value;
+					}
+				}
+			}
+			
+			if (hash_has_key(env->root_namespace->next_level, var_name)) {
+				RuntimeValue* rt = hash_get(env->root_namespace->next_level, var_name);
+				if (rt->runtime_type == C_NAMESPACE) {
+					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+					rt_value->runtime_type = C_NAMESPACE;
+					rt_value->value.domain_namespace = (RuntimeNamespace*) rt;
+					rt_value->is_return = 0;
+					return rt_value;
+				} else if (rt->runtime_type == C_NEW_OBJECT) {
+					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+					rt_value->runtime_type = C_NEW_OBJECT;
+					rt_value->value.object = (RuntimeObject*) rt;
+					rt_value->is_return = 0;
+					return rt_value;
+				} else if (rt->runtime_type == C_CLASS_DEFINE) {
+					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+					rt_value->runtime_type = C_CLASS_DEFINE;
+					rt_value->value.klass = (RuntimeClass*) rt;
+					rt_value->is_return = 0;
+					return rt_value;
+				}
+			}
+			
+			/*
+			if (env->classes != NULL) {
+				if (hash_has_key(env->classes, var_name)) {
+					RuntimeValue* rt = hash_get(env->classes, var_name);
+					if (rt->runtime_type == C_CLASS_DEFINE) {
+						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+						rt_value->runtime_type = C_CLASS_DEFINE;
+						rt_value->value.klass = (RuntimeClass*) rt;
+						rt_value->is_return = 0;
+						return rt_value;
+					}
+				}
+			}
+			*/
+			
+			FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+			HashTable* from_env;
+			if (peak == NULL) {
+				from_env = env->vars;
+			} else {
+				from_env = peak->local_vars;
+			}
+			
+			RuntimeValue* fetched_var = (RuntimeValue*) hash_get(from_env, var_name);
 			if (peak != NULL && fetched_var == NULL) {
-				fetched_var = (RuntimeValue*) hash_get(env->vars, (char*)list_buffer_get(rt_location->list, 0));
+				fetched_var = (RuntimeValue*) hash_get(env->vars, var_name);
 			}
 			if (fetched_var != NULL) {
 				return fetched_var;
@@ -829,9 +1244,86 @@ RuntimeValue* execute(AST* ast) {
 				exit(0);
 			}
 		} else {
-			// for static property in class
-			raise_error("Not implemented.", ast);
-			exit(0);
+			RuntimeClass* current_object = NULL;
+			RuntimeValue* ret_rt_val = NULL;
+			FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
+			for (int i = 0; i < location->count;) {
+				char* current_node_name = (char*) list_buffer_get(location, i);
+				if (current_object == NULL) {
+					if (hash_has_key(env->current_namespace->next_level, current_node_name)) {
+						current_object = env->current_namespace; // RuntimeNamespace/RuntimeClass
+					} else if (hash_has_key(env->root_namespace->next_level, current_node_name)) {
+						current_object = env->root_namespace; // RuntimeNamespace/RuntimeClass
+					} /*else if (hash_has_key(env->classes, current_node_name)) {
+						current_object = hash_get(env->classes, current_node_name); // RuntimeClass
+					} */else if (peak != NULL && peak->invoke_method == 0) {
+						// set properties from object
+						current_object = peak->oop_info.object; // RuntimeObject
+					} else if (hash_has_key(env->vars, current_node_name)) {
+						return (RuntimeValue*) hash_get(env->vars, current_node_name);
+					} else {
+						raise_error("Cannot find specified namespace or class.", ast);
+						exit(0);
+					}
+				} else if (current_object->runtime_type == C_NAMESPACE) {
+					if (hash_has_key(((RuntimeNamespace*)current_object)->next_level, current_node_name)) {
+						RuntimeClass* compute_next_obj = hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+						if (compute_next_obj == C_NAMESPACE) {
+							current_object = (RuntimeNamespace*) hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+						} else {
+							current_object = (RuntimeClass*) hash_get(((RuntimeNamespace*)current_object)->next_level, current_node_name);
+						}
+						i++;
+					} else {
+						raise_error("Cannot find specified namespace.", ast);
+						exit(0);
+					}
+				} else if (current_object->runtime_type == C_CLASS_DEFINE) {
+					if (hash_has_key(((RuntimeClass*)current_object)->shared_properties, current_node_name)) {
+						ret_rt_val = (RuntimeObject*) hash_get(((RuntimeClass*)current_object)->shared_properties, current_node_name);
+						break;
+					} else {
+						raise_error("Cannot find specified property.", ast);
+						exit(0);
+					}
+				} else if (current_object->runtime_type == C_NEW_OBJECT) {
+					if (hash_has_key(((RuntimeObject*)current_object)->data, current_node_name)) {
+						RuntimeValue* property = hash_get(((RuntimeObject*)current_object)->data, current_node_name);
+						if (property->runtime_type == C_INT) {
+							ret_rt_val = property;
+						} else if (property->runtime_type == C_DECIMAL) {
+							ret_rt_val = property;
+						} else if (property->runtime_type == C_STRING) {
+							ret_rt_val = property;
+						} else if (property->runtime_type == C_LONG) {
+							ret_rt_val = property;
+						} else if (property->runtime_type == C_NEW_OBJECT) {
+							current_object = property;
+							ret_rt_val = property;
+							i++;
+							continue;
+						} else {
+							raise_error("System error!", ast);
+							exit(0);
+						}
+						i++;
+						break;
+					} else {
+						raise_error("Cannot accese an undefined element.", ast);
+						exit(0);
+					}
+				} else {
+					raise_error("error", ast);
+					exit(0);
+				}
+			}
+			
+			if (ret_rt_val == NULL) {
+				raise_error("Cannot locate given path.", ast);
+				exit(0);
+			}
+			
+			return ret_rt_val;
 		}
 	} else if (ast->node_type == NODE_TYPE_WHILE_STATEMENT) {
 		WhileStatement* while_statement = (WhileStatement *)ast;
@@ -876,12 +1368,12 @@ RuntimeValue* execute(AST* ast) {
 			is_decimal_compute = 1;
 			d_val = runtime_as_decimal(start);
 			start->runtime_type = C_DECIMAL;
-			start->d_val = d_val;
+			start->value.d_val = d_val;
 		} else if (start->runtime_type == C_INT && until->runtime_type == C_INT && (step != NULL &&step->runtime_type == C_INT)) {
 			is_decimal_compute = 0;
 			i_val = runtime_as_integer(start);
 			start->runtime_type = C_INT;
-			start->i_val = i_val;
+			start->value.i_val = i_val;
 		}
 		while (is_decimal_compute ? (
 				runtime_as_decimal(step) > 0 ? 
@@ -902,10 +1394,10 @@ RuntimeValue* execute(AST* ast) {
 			}
 			if (is_decimal_compute) {
 				d_val = d_val + runtime_as_decimal(step);
-				start->d_val = d_val;
+				start->value.d_val = d_val;
 			} else {
 				i_val = i_val + runtime_as_integer(step);
-				start->i_val = i_val;
+				start->value.i_val = i_val;
 			}
 		}
 		//hash_delete(env->vars, ((Dimension*)(for_statement->dim))->var_name);
@@ -935,16 +1427,16 @@ RuntimeValue* execute(AST* ast) {
 		RuntimeValue* value = malloc(sizeof(RuntimeValue) + 1);
 		value->runtime_type = C_LIST_BUFFER;
 		// ListBuffer<RuntimeFunctionArg>
-		value->list = flatten_function_args(ast);
+		value->value.list = flatten_function_args(ast);
 		return value;
 	} else if (ast->node_type == NODE_TYPE_LOCATE) {
 		Location* location = (Location*) ast;
 		char* node_name = location->name;
 		RuntimeValue* rt_location = make_new_runtime_list_buffer();
-		list_buffer_add(rt_location->list, node_name);
+		list_buffer_add(rt_location->value.list, node_name);
 		if (location->next_node != NULL) {
 			RuntimeValue* next_node_rt_value = execute(location->next_node);
-			list_buffer_concat(rt_location->list, next_node_rt_value->list);
+			list_buffer_concat(rt_location->value.list, next_node_rt_value->value.list);
 			return rt_location;
 		} else {
 			return rt_location;
@@ -952,19 +1444,25 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == NODE_TYPE_NAMESPACE) {
 		// RuntimeValue<ListBuffer>
 		RuntimeValue* rt_location = execute(ast->left_node/* location */);
-		for (int i = 0; i < rt_location->list->count; i++) {
-			char* node_name = list_buffer_get(rt_location->list, i);
+		for (int i = 0; i < rt_location->value.list->count; i++) {
+			char* node_name = list_buffer_get(rt_location->value.list, i);
 			if (env->current_namespace == NULL) {	// first loop, at the top level
-				if (!hash_has_key(env->classes, node_name)) {
+				if (hash_has_key(env->root_namespace->next_level, node_name)) {
+					RuntimeNamespace* name_space = (RuntimeNamespace*) hash_get(env->root_namespace->next_level, node_name);
+					if (name_space->runtime_type == C_NAMESPACE) {
+						env->current_namespace = name_space;
+					} else {
+						raise_error("A class has been defined and conflict with this domain, please rename the namespace.", ast);
+						exit(0);
+					}
+				} else {
 					RuntimeNamespace* new_namespace = malloc(sizeof(RuntimeNamespace) + 1);
 					new_namespace->runtime_type = C_NAMESPACE;
 					new_namespace->name = malloc(sizeof(char) * strlen(node_name) + 1);
 					strcpy(new_namespace->name, node_name);
-					new_namespace->next_level = hash_init(120);
-					hash_put(env->classes, node_name, (void*) new_namespace);
+					new_namespace->next_level = hash_init(60);
+					hash_put(env->root_namespace->next_level, node_name, new_namespace);
 					env->current_namespace = new_namespace;
-				} else {
-					env->current_namespace = (RuntimeNamespace*) hash_get(env->classes, node_name);
 				}
 			} else {
 				if (!hash_has_key(env->current_namespace->next_level, node_name)) {
@@ -972,15 +1470,23 @@ RuntimeValue* execute(AST* ast) {
 					new_namespace->runtime_type = C_NAMESPACE;
 					new_namespace->name = malloc(sizeof(char) * strlen(node_name) + 1);
 					strcpy(new_namespace->name, node_name);
-					new_namespace->next_level = hash_init(120);
+					new_namespace->next_level = hash_init(60);
 					
-					hash_put(env->current_namespace->next_level, node_name, (void*) new_namespace);
+					hash_put(env->current_namespace->next_level, node_name, new_namespace);
 					env->current_namespace = new_namespace;
 				} else {
-					env->current_namespace = (RuntimeNamespace*) hash_get(env->current_namespace->next_level, node_name);
+					RuntimeNamespace* name_space = (RuntimeNamespace*) hash_get(env->current_namespace->next_level, node_name);
+					if (name_space->runtime_type == C_NAMESPACE) {
+					 	env->current_namespace = name_space;
+					} else {
+						raise_error("A class has been defined and conflict with this domain, please rename the namespace.", ast);
+						exit(0);
+					}
 				}
 			}
 		}
+	} else if (ast->node_type == NODE_TYPE_IMPORT) {
+		
 	} else if (ast->node_type == NODE_TYPE_CLASS) {
 		ClassDefinition* class_definition = (ClassDefinition*) ast;
 		
@@ -1017,12 +1523,20 @@ RuntimeValue* execute(AST* ast) {
 			raise_error("Syntax error when defining method of class.", ast);
 			exit(0);
 		}
-		function->function->access_modifier = class_method->access_modifier;
-		function->function->is_static = class_method->is_static;
-		if (env->current_building_class->runtime_type == C_TRAIT) {
-			hash_put(env->current_building_class->methods, function->function->name, function->function);
-		} else if (env->current_building_class->runtime_type == C_CLASS_DEFINE) {
-			hash_put(env->current_building_class->methods, function->function->name, function->function);
+		function->value.function->access_modifier = class_method->access_modifier;
+		function->value.function->is_static = class_method->is_static;
+		if (class_method->is_static == 0) {
+			if (env->current_building_class->runtime_type == C_TRAIT) {
+				hash_put(env->current_building_class->methods, function->value.function->name, function->value.function);
+			} else if (env->current_building_class->runtime_type == C_CLASS_DEFINE) {
+				hash_put(env->current_building_class->methods, function->value.function->name, function->value.function);
+			}
+		} else {
+			if (env->current_building_class->runtime_type == C_TRAIT) {
+				hash_put(env->current_building_class->shared_methods, function->value.function->name, function->value.function);
+			} else if (env->current_building_class->runtime_type == C_CLASS_DEFINE) {
+				hash_put(env->current_building_class->shared_methods, function->value.function->name, function->value.function);
+			}
 		}
 	} else if (ast->node_type == NODE_TYPE_PROPERTY) {
 		if (env->current_building_class == NULL) {
@@ -1032,10 +1546,15 @@ RuntimeValue* execute(AST* ast) {
 		ClassProperty* class_property = (ClassProperty*) ast;
 		Dimension* dimension = (Dimension*)class_property->dim;
 		dimension->node_type = NODE_TYPE_PROPERTY_DIM;
+		dimension->shared = class_property->is_static;
 		RuntimeValue* result_property = execute(class_property->dim);
 		class_property->access_modifier = class_property->access_modifier;
 		class_property->is_static = class_property->is_static;
-		hash_put(env->current_building_class->methods, dimension->var_name, result_property);
+		/*if (class_property->is_static == 1) {
+			hash_put(env->current_building_class->shared_properties, dimension->var_name, result_property);
+		} else {
+			hash_put(env->current_building_class->properties, dimension->var_name, result_property);
+		}*/
 	} else if (ast->node_type == NODE_TYPE_PROPERTY_DIM) {
 		Dimension* dim = (Dimension*) ast;
 		if (hash_has_key(env->current_building_class->properties, dim->var_name)) {
@@ -1044,9 +1563,17 @@ RuntimeValue* execute(AST* ast) {
 		}
 		if (dim->node != NULL) {
 			RuntimeValue* value = execute(dim->node);
-			hash_put(env->current_building_class->properties, dim->var_name, value);
+			if (dim->shared == 1) {
+				hash_put(env->current_building_class->shared_properties, dim->var_name, value);
+			} else {
+				hash_put(env->current_building_class->properties, dim->var_name, value);
+			}
 		} else {
-			hash_put(env->current_building_class->properties, dim->var_name, make_runtime_null());
+			if (dim->shared == 1) {
+				hash_put(env->current_building_class->shared_properties, dim->var_name, make_runtime_null());
+			} else {
+				hash_put(env->current_building_class->properties, dim->var_name, make_runtime_null());
+			}
 		}
 		if (dim->next_dim != NULL) {
 			dim->next_dim->node_type = NODE_TYPE_PROPERTY_DIM;
@@ -1101,6 +1628,205 @@ RuntimeValue* execute(AST* ast) {
 			current_node = current_node->right_node;
 		}
 		return NULL;
+	} else if (ast->node_type == NODE_TYPE_NEW_OBJECT) {
+		NewObject* object = (NewObject*) ast;
+	
+		RuntimeValue* new_val = malloc(sizeof(RuntimeValue) + 1);
+		new_val->runtime_type = C_NEW_OBJECT;
+		
+		RuntimeValue* location_list = execute(object->class_location);
+		ListBuffer* loc_list = location_list->value.list;
+		
+		RuntimeObject* new_object = malloc(sizeof(RuntimeObject) + 1);
+		new_object->runtime_type = C_NEW_OBJECT;
+		
+		char* class_name = list_buffer_get(loc_list, loc_list->count - 1);
+		
+		new_object->class_name = malloc(sizeof(char) * strlen(class_name) + 1);
+		strcpy(new_object->class_name, class_name);
+		
+		new_object->path = loc_list;
+		new_object->in_namespace = env->current_namespace;
+		new_object->p_runtime_class = find_as_runtime_class(loc_list, ast);
+		if (new_object->p_runtime_class->properties == NULL) {
+			raise_error("System error of properties table didn't correctly initialized.", ast);
+			exit(0);
+		}
+		
+		/*
+		RuntimeValue* me_wrapper = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
+		me_wrapper->runtime_type = C_NEW_OBJECT;
+		me_wrapper->value.object = (RuntimeValue*) new_object;
+		me_wrapper->is_return = 0;
+		*/
+		
+		new_object->data = (HashTable*) hash_init(60);
+		
+		hash_put(new_object->data, "Me", new_object);
+		
+		// instantiate a new object.
+		
+		HashTable* properties_table = new_object->p_runtime_class->properties;
+		
+		for (int j = 0; j < properties_table->pool_size; j++) {
+			LinkedList* list = properties_table->container[j];
+			if (list->count > 0) {
+				LinkedListNode* pointer_node = list->head;
+				for (int i = 0; i <= list->count; i++) {
+					if (i > 0) {
+						char* key = (char*)(((HashTableNode *) (pointer_node->value))->key);
+						hash_put(new_object->data, key, (RuntimeValue*)((HashTableNode *) (pointer_node->value))->value);
+					}
+					pointer_node = pointer_node->next_node;
+				}
+			}
+		}
+		
+		// instantiate the properties of parent class and traits.
+		
+		// to do
+		
+		new_val->value.object = new_object;
+		
+		// Execute constructor
+		
+		stack_push(env->call_stack, dup_new_func_stack_element_object(new_object));
+		
+		if (hash_has_key(new_object->p_runtime_class->methods, "New")) {
+		
+			RuntimeFunction* init_method = (RuntimeFunction*) hash_get(new_object->p_runtime_class->methods, "New");
+			RuntimeValue* argument_list = execute(object->arguments);
+			
+			if (init_method->arguments->count > 0) {
+				execute_function_header(init_method->arguments, argument_list->value.list, ast);
+			}
+			RuntimeValue* return_value = execute(init_method->statements);
+			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
+			hash_free(popped_env->local_vars);
+			free(popped_env);
+			if (init_method->runtime_type == C_FUNCTION_DEFINE) {
+				raise_error("Constructor must be a subroutine.", ast);
+				exit(0);
+			} else if (return_value != NULL && return_value->runtime_type != C_EXITSUB) {
+				raise_error("Subroutine cannot return a value.", ast);
+				exit(0);
+			}
+		
+		}
+		
+		// *************************
+		
+		new_val->is_return = 0;
+		
+		return new_val;
+	} else if (ast->node_type == NODE_TYPE_ACCESSOR) {
+		Accessor* accessor = (Accessor*) ast;
+		RuntimeValue* rt_left = execute(accessor->left_node);
+		
+		if (rt_left->runtime_type == C_NEW_OBJECT) {
+			if (hash_has_key(rt_left->value.object->p_runtime_class->properties, accessor->attribute_name)) {
+				if (hash_has_key(rt_left->value.object->data, accessor->attribute_name)) {
+					return (RuntimeValue*) hash_get(rt_left->value.object->data, accessor->attribute_name);
+				} else {
+					return make_runtime_null();
+				}
+			} else if (hash_has_key(rt_left->value.object->p_runtime_class->methods, accessor->attribute_name)) {
+				stack_push(env->call_stack, dup_new_func_stack_element_object(rt_left->value.object));
+				
+				RuntimeFunction* method = (RuntimeFunction*) hash_get(rt_left->value.object->p_runtime_class->methods, accessor->attribute_name);
+				RuntimeValue* argument_list = execute(accessor->arguments);
+				
+				if (method->arguments->count > 0) {
+					execute_function_header(method->arguments, argument_list->value.list, ast);
+				}
+				RuntimeValue* return_value = execute(method->statements);
+				FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
+				hash_free(popped_env->local_vars);
+				free(popped_env);
+				if (method->runtime_type == C_FUNCTION_DEFINE) {
+					if (return_value == NULL) {
+						raise_error("Function must return a value.", ast);
+						exit(0);
+					}
+					return return_value;
+				} else if (return_value != NULL && return_value->runtime_type != C_EXITSUB) {
+					raise_error("Subroutine cannot return a value.", ast);
+					exit(0);
+				}
+			} else {
+				raise_error("Undefined element of object.", ast);
+				exit(0);
+			}
+		} else if (rt_left->runtime_type == C_CLASS_DEFINE) {
+			char* right_node_name = accessor->attribute_name;
+			RuntimeClass* this_class = rt_left->value.klass;
+			if (hash_has_key(this_class->shared_properties, right_node_name)) {
+				RuntimeValue* shared_property = hash_get(this_class->shared_properties, right_node_name);
+				return shared_property;
+			} else if (hash_has_key(this_class->shared_methods, right_node_name)) {
+				stack_push(env->call_stack, dup_new_func_stack_element_class(this_class));
+				
+				RuntimeFunction* method = (RuntimeFunction*) hash_get(this_class->shared_methods, accessor->attribute_name);
+				RuntimeValue* argument_list = execute(accessor->arguments);
+				
+				if (method->arguments->count > 0) {
+					execute_function_header(method->arguments, argument_list->value.list, ast);
+				}
+				RuntimeValue* return_value = execute(method->statements);
+				FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
+				hash_free(popped_env->local_vars);
+				free(popped_env);
+				if (method->runtime_type == C_FUNCTION_DEFINE) {
+					if (return_value == NULL) {
+						raise_error("Function must return a value.", ast);
+						exit(0);
+					}
+					return return_value;
+				} else if (return_value != NULL && return_value->runtime_type != C_EXITSUB) {
+					raise_error("Subroutine cannot return a value.", ast);
+					exit(0);
+				}
+			} else {
+				raise_error("Cannot find the property of the namespace.", ast);
+				exit(0);
+			}
+		} else if (rt_left->runtime_type == C_NAMESPACE) {
+			char* right_node_name = accessor->attribute_name;
+			RuntimeNamespace* this_namespace = rt_left->value.domain_namespace;
+			if (hash_has_key(this_namespace->next_level, right_node_name)) {
+				RuntimeClass* rt = hash_get(this_namespace->next_level, right_node_name);
+				if (rt->runtime_type == C_NAMESPACE) {
+					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+					rt_value->runtime_type = C_NAMESPACE;
+					rt_value->value.domain_namespace = (RuntimeNamespace*) rt;
+					rt_value->is_return = 0;
+					return rt_value;
+				} else if (rt->runtime_type == C_CLASS_DEFINE) {
+					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+					rt_value->runtime_type = C_CLASS_DEFINE;
+					rt_value->value.klass = (RuntimeClass*) rt;
+					rt_value->is_return = 0;
+					return rt;
+				} else if (rt->runtime_type == C_NEW_OBJECT) {
+					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
+					rt_value->runtime_type = C_NEW_OBJECT;
+					rt_value->value.object = (RuntimeObject*) rt;
+					rt_value->is_return = 0;
+					return rt;
+				} else {
+					return (RuntimeValue*) rt;
+				}
+			} else {
+				raise_error("Cannot find the property of the namespace.", ast);
+				exit(0);
+			}
+		} else if (rt_left->runtime_type == C_STRING) {
+			raise_error("String not implemented.", ast);
+			exit(0);
+		} else {
+			raise_error("The dot symbol must be put on the right of an instantiated object, namespace or class.", ast);
+			exit(0);
+		}
 	}
 	return NULL;
 }

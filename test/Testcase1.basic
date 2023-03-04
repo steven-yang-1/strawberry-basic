@@ -1,6 +1,7 @@
-' Test fundamental statements
+' Testcase of fundamental statements.
 ' @Author: Steven Yang
 
+' Reassign
 Dim testNumber = 1
 testNumber = 1.2
 
@@ -8,18 +9,44 @@ PrintLine(testNumber)
 
 PrintLine("")
 
-For j = 10 To 0 Step -2
+PrintLine("Print the even numbers from 0 to 10:")
+
+For j = 0 To 10 Step 2
 	PrintLine(j)
 Next j
+
+PrintLine("")
+PrintLine("Print the even numbers from 10 downto 0:")
 
 For j = 10 To 0 Step -2
 	PrintLine(j)
 Next j
+
+PrintLine("")
+
+Dim p = 1
+
+If p = 1 Then
+	PrintLine("P = 1")
+End If
+
+PrintLine("")
+
+Dim m = 14
+PrintLine("I'm " & CStr(m) & " years old.")
+
+PrintLine("")
+
+Dim vbCrLf = Chr(13) & Chr(10)
+
+PrintLine("Line 1" & vbCrLf & "Line 2")
+
+PrintLine("")
 
 Dim i = 0
 While i < 10
 	PrintLine(i)
-	If i == 3 Then
+	If i = 3 Then
 		i = i + 2
 		Continue
 	End If
@@ -28,27 +55,27 @@ End While
 
 PrintLine("")
 
-PrintLine("")
-
+' C
 Dim a, b = 5
 If b < 4 Then
 	PrintLine("a")
 ElseIf b < 2 Then
 	PrintLine("D")
-ElseIf b == 5 Then
+ElseIf b = 5 Then
 	PrintLine("C")
 Else
 	PrintLine("b")
 End If
 
+' Null
 PrintLine(a)
 PrintLine("")
-PrintLine("")
 
+' Break testing.
 i = 0
 Do
 	PrintLine(i)
-	If i == 3 Then
+	If i = 3 Then
 		Break
 	End If
 	i = i + 1

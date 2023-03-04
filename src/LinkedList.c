@@ -73,6 +73,4 @@ void list_free(LinkedList* list) {
         current_node = NULL;
     }
     list->count = 0;
-    free(list);
-    list = NULL;
 }

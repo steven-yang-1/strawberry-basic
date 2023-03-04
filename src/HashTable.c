@@ -19,8 +19,10 @@ HashTable* hash_init(int pool_size) {
         hash_table->count = 0;
         hash_table->pool_size = pool_size;
         hash_table->container = malloc(sizeof(LinkedList) * pool_size + 1);
+        //*(hash_table->container) = malloc(sizeof(LinkedList) * pool_size + 1);
         for (int i = 0; i < pool_size; i++) {
             hash_table->container[i] = list_init();
+            
         }
         hash_table->name_list = list_buffer_init();
         return hash_table;
