@@ -4,22 +4,38 @@ Class Student
 
 	Public Property id
 	Public Property name
+	Public Property gender
 	
-	Public Sub New(id, name)
+	Public Shared Property className = "Class I"
+	
+	Public Sub New(id, name, gender)
 		Me.id = id
 		Me.name = name
+		Me.gender = gender
+		Student.className = "New Class"
 	End Sub
 	
 	Public Sub Print()
 		PrintLine("Student ID:    " & CStr(Me.id))
 		PrintLine("Student Name:  " & CStr(Me.name))
+		PrintLine("Gender:        " & CStr(Me.gender))
 	End Sub
 
-	Public Shared Function Instance()
-		Return instance
+	Public Shared Function NewInstance()
+		Return New Student(121125, "New Student", 1)
+	End Function
+	
+	Public Shared Function RetTest()
+		PrintLine("yes")
+		Return "test"
 	End Function
 End Class
 
-Dim student1 = Student.Instance().Print()
-'student1.Print()
+PrintLine("Before1")
+Dim student1 = Student.NewInstance()
+PrintLine("Before")
+PrintLine(student1.name)
+PrintLine("AFTER")
+student1.Print()
+PrintLine(Student.className)
 

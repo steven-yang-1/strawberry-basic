@@ -15,16 +15,8 @@
  */
 #ifndef _ITOA_H_
 #define _ITOA_H_
-#ifdef __cplusplus
-extern "C" {
-#endif  /* __cplusplus */
 
-#include <sys/types.h>
+int	sltoa(char *s, long int n);
+int	ultoa(char *s, unsigned long int n);
 
-size_t	sltoa(char *s, long int n);
-size_t	ultoa(char *s, unsigned long int n);
-
-#ifdef __cplusplus
-}
-#endif  /* __cplusplus */
-#endif	/* _ITOA_H_ */
+#endif

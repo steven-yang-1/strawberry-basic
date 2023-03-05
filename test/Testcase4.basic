@@ -27,6 +27,10 @@ Sub LoopTimes(times)
 	Next
 End Sub
 
+Sub PrintString(str)
+	PrintLine(str)
+End Sub
+
 PrintLine(Add(1, 2))
 PrintLine(Add(1, 2.2))
 PrintLine(Minus(3, 2.2))
@@ -35,3 +39,5 @@ PrintLine(Divide(5, 0))
 PrintLine(Divide(5, 2))
 PrintLine(Divide(5, 2.0))
 LoopTimes(10)
+PrintLine("")
+PrintString("teststr")

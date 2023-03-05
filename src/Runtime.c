@@ -418,7 +418,7 @@ AST* make_return(AST* expr, int line_no) {
 AST* make_break(int line_no) {
 	BreakStatement* new_val = malloc(sizeof(BreakStatement) + 1);
 	if (new_val == NULL) {
-		yyerror("System error.");
+		yyerror("System error.2");
 		exit(0);
 	}
 	new_val->node_type = NODE_TYPE_BREAK;
@@ -429,7 +429,7 @@ AST* make_break(int line_no) {
 AST* make_continue(int line_no) {
 	ContinueStatement* new_val = malloc(sizeof(ContinueStatement) + 1);
 	if (new_val == NULL) {
-		yyerror("System error.");
+		yyerror("System error.3");
 		exit(0);
 	}
 	new_val->node_type = NODE_TYPE_CONTINUE;
@@ -492,7 +492,8 @@ RuntimeClass* find_as_runtime_class(ListBuffer* location, AST* ast) {
 			} else if (name_space_or_class->runtime_type == C_CLASS_DEFINE && i == location->count - 1) {
 				return (RuntimeClass*) name_space_or_class;
 			} else {
-				raise_error("System error.", ast);
+				raise_error("System error.4", ast);
+				exit(0);
 			}
 		} else {
 			break;
@@ -510,7 +511,7 @@ RuntimeClass* find_as_runtime_class(ListBuffer* location, AST* ast) {
 			} else if (name_space_or_class->runtime_type == C_CLASS_DEFINE && i == location->count - 1) {
 				return (RuntimeClass*) name_space_or_class;
 			} else {
-				raise_error("System error.", ast);
+				raise_error("System error.5", ast);
 				exit(0);
 			}
 		} else {
@@ -639,7 +640,7 @@ RuntimeValue* execute(AST* ast) {
 	} else if (ast->node_type == NODE_TYPE_SET_ATTR) {
 		Dimension* dimension = (Dimension*) ast;
 		if (dimension->location == NULL) {
-			raise_error("System error..", ast);
+			raise_error("System error.6.", ast);
 			exit(0);
 		}
 		RuntimeValue* location_rt = execute(dimension->location);
@@ -685,8 +686,8 @@ RuntimeValue* execute(AST* ast) {
 					exit(0);
 				}
 			} else if (current_object->runtime_type == C_NEW_OBJECT) {
-				if (hash_has_key(((RuntimeObject*)current_object)->data, current_node_name)) {
-					RuntimeValue* property = hash_get(((RuntimeObject*)current_object)->data, current_node_name);
+				if (hash_has_key(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->data, current_node_name)) {
+					RuntimeValue* property = hash_get(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->data, current_node_name);
 					if (property->runtime_type == C_INT) {
 						set_object_rt_value = property;
 					} else if (property->runtime_type == C_DECIMAL) {
@@ -737,9 +738,8 @@ RuntimeValue* execute(AST* ast) {
 		} else if (eval_value->runtime_type == C_STRING) {
 			RuntimeValue* p = set_object_rt_value;
 			p->runtime_type = eval_value->runtime_type;
-			p->value.s_val = eval_value->value.s_val;
 			p->value.s_val = malloc(sizeof(char) * strlen(eval_value->value.s_val) + 1);
-			strcpy(p->value.s_val, eval_value);
+			strcpy(p->value.s_val, eval_value->value.s_val);
 		} else if (eval_value->runtime_type == C_LONG) {
 			RuntimeValue* p = set_object_rt_value;
 			p->runtime_type = eval_value->runtime_type;
@@ -760,6 +760,8 @@ RuntimeValue* execute(AST* ast) {
 			value->value.s_val = ((Constant *)ast)->value.s_val;
 		} else if (value->runtime_type == C_LONG) {
 			value->value.l_val = ((Constant *)ast)->value.l_val;
+		} else {
+			raise_error("System error. 11", ast);
 		}
 		value->is_return = 0;
 		return value;
@@ -796,6 +798,7 @@ RuntimeValue* execute(AST* ast) {
 			RuntimeValue* interrupter = execute(current_node->left_node);
 			if (interrupter != NULL) {
 				if (interrupter->runtime_type == C_BREAK || interrupter->runtime_type == C_CONTINUE || interrupter->is_return) {
+					interrupter->is_return = 0;
 					return interrupter;
 				}
 			}
@@ -1011,8 +1014,12 @@ RuntimeValue* execute(AST* ast) {
 				printf("%f", param1->value.d_val);
 			} else if (param1->runtime_type == C_NULL) {
 				printf("NULL");
+			} else if (param1->runtime_type == C_LONG) {
+				printf("%d", param1->value.l_val);
+			} else if (param1->runtime_type == C_NEW_OBJECT) {
+				printf("(OBJECT)");
 			} else {
-				printf("System error.\n");
+				printf("System error.7\n");
 			}
 			return NULL;
 		} else if (!strcmp(first_function_name, "PrintLine")) {
@@ -1024,8 +1031,12 @@ RuntimeValue* execute(AST* ast) {
 				printf("%f\n", param1->value.d_val);
 			} else if (param1->runtime_type == C_NULL) {
 				printf("Null\n");
+			} else if (param1->runtime_type == C_LONG) {
+				printf("%d", param1->value.l_val);
+			} else if (param1->runtime_type == C_NEW_OBJECT) {
+				printf("(OBJECT)");
 			} else {
-				raise_error("System error.", ast);
+				raise_error("System error.8", ast);
 				exit(0);
 			}
 			return NULL;
@@ -1039,7 +1050,7 @@ RuntimeValue* execute(AST* ast) {
 				ultoa(result->value.s_val, param1->value.i_val);
 			} else if (param1->runtime_type == C_NULL) {
 			} else {
-				raise_error("System error.", ast);
+				raise_error("System error.9", ast);
 				exit(0);
 			}
 			return result;
@@ -1093,7 +1104,7 @@ RuntimeValue* execute(AST* ast) {
 				} else if (current_object->runtime_type == C_CLASS_DEFINE) {
 					if (hash_has_key(((RuntimeClass*)current_object)->shared_methods, current_node_name)) {
 						set_object_rt_value = (RuntimeFunction*) hash_get(((RuntimeClass*)current_object)->shared_methods, current_node_name);
-						//break;
+						break;
 					} else {
 						raise_error("Cannot find specified shared method.", ast);
 						exit(0);
@@ -1101,7 +1112,9 @@ RuntimeValue* execute(AST* ast) {
 				} else if (current_object->runtime_type == C_NEW_OBJECT) {
 					if (hash_has_key(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->p_runtime_class->methods, current_node_name)) {
 						set_object_rt_value = (RuntimeFunction*) hash_get(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->p_runtime_class->methods, current_node_name);
-						//break;
+						break;
+					} else if (hash_has_key(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->data, current_node_name)) {
+						current_object = hash_get(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->data, current_node_name);
 					} else {
 						raise_error("Cannot find specified shared method.", ast);
 						exit(0);
@@ -1132,6 +1145,7 @@ RuntimeValue* execute(AST* ast) {
 			if (current_runtime_function->arguments->count > 0) {
 				execute_function_header(current_runtime_function->arguments, argument_list->value.list, ast);
 			}
+			
 			RuntimeValue* return_value = execute(current_runtime_function->statements);
 			FunctionStackElement* popped_env = (FunctionStackElement*) stack_pop(env->call_stack);
 			hash_free(popped_env->local_vars);
@@ -1162,6 +1176,8 @@ RuntimeValue* execute(AST* ast) {
 		if (location->count == 1) {
 		
 			char* var_name = (char*) list_buffer_get(location, 0);
+			
+			/*
 			if (env->current_namespace != NULL) {
 				if (hash_has_key(env->current_namespace->next_level, var_name)) {
 					RuntimeValue* rt = hash_get(env->current_namespace->next_level, var_name);
@@ -1209,6 +1225,7 @@ RuntimeValue* execute(AST* ast) {
 					return rt_value;
 				}
 			}
+			*/
 			
 			/*
 			if (env->classes != NULL) {
@@ -1260,7 +1277,8 @@ RuntimeValue* execute(AST* ast) {
 						// set properties from object
 						current_object = peak->oop_info.object; // RuntimeObject
 					} else if (hash_has_key(env->vars, current_node_name)) {
-						return (RuntimeValue*) hash_get(env->vars, current_node_name);
+						current_object = (RuntimeValue*) hash_get(env->vars, current_node_name);
+						i++;
 					} else {
 						raise_error("Cannot find specified namespace or class.", ast);
 						exit(0);
@@ -1287,8 +1305,8 @@ RuntimeValue* execute(AST* ast) {
 						exit(0);
 					}
 				} else if (current_object->runtime_type == C_NEW_OBJECT) {
-					if (hash_has_key(((RuntimeObject*)current_object)->data, current_node_name)) {
-						RuntimeValue* property = hash_get(((RuntimeObject*)current_object)->data, current_node_name);
+					if (hash_has_key(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->data, current_node_name)) {
+						RuntimeValue* property = hash_get(((RuntimeObject*)(((RuntimeValue*)(current_object))->value.object))->data, current_node_name);
 						if (property->runtime_type == C_INT) {
 							ret_rt_val = property;
 						} else if (property->runtime_type == C_DECIMAL) {
@@ -1504,7 +1522,7 @@ RuntimeValue* execute(AST* ast) {
 		hash_put(env->current_namespace->next_level, class_definition->class_name, runtime_class);
 	} else if (ast->node_type == NODE_TYPE_CLASS_ATTR) {
 		if (env->current_building_class == NULL) {
-			raise_error("System error.", ast);
+			raise_error("System error.10", ast);
 			exit(0);
 		}
 		ClassAttrDefinition* cls_attr_definition = (ClassAttrDefinition*) ast;
@@ -1653,16 +1671,14 @@ RuntimeValue* execute(AST* ast) {
 			exit(0);
 		}
 		
-		/*
 		RuntimeValue* me_wrapper = (RuntimeValue*) malloc(sizeof(RuntimeValue) + 1);
 		me_wrapper->runtime_type = C_NEW_OBJECT;
 		me_wrapper->value.object = (RuntimeValue*) new_object;
 		me_wrapper->is_return = 0;
-		*/
 		
 		new_object->data = (HashTable*) hash_init(60);
 		
-		hash_put(new_object->data, "Me", new_object);
+		hash_put(new_object->data, "Me", me_wrapper);
 		
 		// instantiate a new object.
 		
@@ -1690,7 +1706,7 @@ RuntimeValue* execute(AST* ast) {
 		
 		// Execute constructor
 		
-		stack_push(env->call_stack, dup_new_func_stack_element_object(new_object));
+		stack_push(env->call_stack, dup_new_func_stack_element_object(new_val));
 		
 		if (hash_has_key(new_object->p_runtime_class->methods, "New")) {
 		
@@ -1731,7 +1747,7 @@ RuntimeValue* execute(AST* ast) {
 					return make_runtime_null();
 				}
 			} else if (hash_has_key(rt_left->value.object->p_runtime_class->methods, accessor->attribute_name)) {
-				stack_push(env->call_stack, dup_new_func_stack_element_object(rt_left->value.object));
+				stack_push(env->call_stack, dup_new_func_stack_element_object(rt_left)); // to do  ->value.object
 				
 				RuntimeFunction* method = (RuntimeFunction*) hash_get(rt_left->value.object->p_runtime_class->methods, accessor->attribute_name);
 				RuntimeValue* argument_list = execute(accessor->arguments);
@@ -1845,7 +1861,7 @@ AST* make_function_arg(char* name, AST* default_value, AST* next_node, int line_
 void execute_function_header(ListBuffer* definitions, ListBuffer* values, AST* ast) {
 	FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 	if (peak == NULL) {
-		raise_error("System error.", ast);
+		raise_error("System error.1", ast);
 		exit(0);
 	}
 	if (definitions->count != values->count) {

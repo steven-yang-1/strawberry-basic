@@ -13,13 +13,16 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <sys/types.h>
+
+/*
+* Steven Yang modified at March 2023.
+*/
 #include "itoa.h"
 
-static void	reverse(char *, size_t);
+static void	reverse(char *, int);
 
-size_t sltoa(char *s, long int n) {
-	size_t i = 0;
+int sltoa(char *s, long int n) {
+	int i = 0;
 	long int sign_mask;
 	unsigned long int nn;
 
@@ -37,8 +40,8 @@ size_t sltoa(char *s, long int n) {
 	return (i);
 }
 
-size_t ultoa(char *s, unsigned long int n) {
-	size_t i = 0;
+int ultoa(char *s, unsigned long int n) {
+	int i = 0;
 
 	do {
 		s[i++] = n % 10 + '0';
@@ -49,8 +52,8 @@ size_t ultoa(char *s, unsigned long int n) {
 	return (i);
 }
 
-static void reverse(char *s, size_t s_len) {
-	size_t i, j;
+static void reverse(char *s, int s_len) {
+	int i, j;
 	char swap;
 
 	for (i = 0, j = s_len - 1; i < j; ++i, --j) {
