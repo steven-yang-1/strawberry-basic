@@ -39,3 +39,8 @@ Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定
 开发/手册/美术：
 
 - Steven Yang（杨泰然）@steven-yang-blue
+
+感谢无私的开源组件贡献者
+
+- Przemo Nowaczyk（波兰）
+
