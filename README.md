@@ -46,3 +46,6 @@ ACKNOWLEDGEMENT FOR THE WORD-WIDE OPEN-SOURCE CONTRIBUTORS
 
 - Przemo Nowaczyk（波兰）
 
+PS. Generally and hopefully, I push the project to Gitee and GitHub synchronously. But in the view of the Internet content arguments between China and US, leading to the unobstructed communication, GitHub version would probably be delayed of releasing. If you are eager to checkout the latest update, you may visit Gitee (a Chinese-mainland GitHub) version which is the URL given below.
+
+https://gitee.com/steven-yang-blue/strawberry-basic
