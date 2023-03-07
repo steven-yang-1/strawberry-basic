@@ -480,6 +480,15 @@ void init_current_building_runtime_class() {
 	}
 }
 
+int check_priviledge_method(Location class_location, char* class_method) {
+	return 1;
+
+}
+
+int check_priviledge_property(Location class_location, char* class_property) {
+	return 1;
+}
+
 RuntimeClass* find_as_runtime_class(ListBuffer* location, AST* ast) {
 	RuntimeNamespace* current_namespace = env->current_namespace;
 	
@@ -660,6 +669,7 @@ RuntimeValue* execute(AST* ast) {
 				}*/ else if (peak != NULL && peak->invoke_method == 0) {
 					// set properties from object
 					current_object = (RuntimeObject*)(peak->oop_info.object);	// RuntimeObject
+					i++;
 				} else {
 					raise_error("Cannot find specified namespace or class.", ast);
 					exit(0);
@@ -798,7 +808,6 @@ RuntimeValue* execute(AST* ast) {
 			RuntimeValue* interrupter = execute(current_node->left_node);
 			if (interrupter != NULL) {
 				if (interrupter->runtime_type == C_BREAK || interrupter->runtime_type == C_CONTINUE || interrupter->is_return) {
-					interrupter->is_return = 0;
 					return interrupter;
 				}
 			}
@@ -1155,6 +1164,7 @@ RuntimeValue* execute(AST* ast) {
 					raise_error("Function must return a value.", ast);
 					exit(0);
 				}
+				return_value->is_return = 0;
 				return return_value;
 			} else if (return_value != NULL && return_value->runtime_type != C_EXITSUB) {
 				raise_error("Subroutine cannot return a value.", ast);
@@ -1176,71 +1186,6 @@ RuntimeValue* execute(AST* ast) {
 		if (location->count == 1) {
 		
 			char* var_name = (char*) list_buffer_get(location, 0);
-			
-			/*
-			if (env->current_namespace != NULL) {
-				if (hash_has_key(env->current_namespace->next_level, var_name)) {
-					RuntimeValue* rt = hash_get(env->current_namespace->next_level, var_name);
-					if (rt->runtime_type == C_CLASS_DEFINE) {
-						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-						rt_value->runtime_type = C_CLASS_DEFINE;
-						rt_value->value.klass = (RuntimeClass*) rt;
-						rt_value->is_return = 0;
-						return rt_value;
-					} else if (rt->runtime_type == C_NAMESPACE) {
-						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-						rt_value->runtime_type = C_NAMESPACE;
-						rt_value->value.domain_namespace = (RuntimeNamespace*) rt;
-						rt_value->is_return = 0;
-						return rt_value;
-					} else if (rt->runtime_type == C_NEW_OBJECT) {
-						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-						rt_value->runtime_type = C_NEW_OBJECT;
-						rt_value->value.object = (RuntimeObject*) rt;
-						rt_value->is_return = 0;
-						return rt_value;
-					}
-				}
-			}
-			
-			if (hash_has_key(env->root_namespace->next_level, var_name)) {
-				RuntimeValue* rt = hash_get(env->root_namespace->next_level, var_name);
-				if (rt->runtime_type == C_NAMESPACE) {
-					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-					rt_value->runtime_type = C_NAMESPACE;
-					rt_value->value.domain_namespace = (RuntimeNamespace*) rt;
-					rt_value->is_return = 0;
-					return rt_value;
-				} else if (rt->runtime_type == C_NEW_OBJECT) {
-					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-					rt_value->runtime_type = C_NEW_OBJECT;
-					rt_value->value.object = (RuntimeObject*) rt;
-					rt_value->is_return = 0;
-					return rt_value;
-				} else if (rt->runtime_type == C_CLASS_DEFINE) {
-					RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-					rt_value->runtime_type = C_CLASS_DEFINE;
-					rt_value->value.klass = (RuntimeClass*) rt;
-					rt_value->is_return = 0;
-					return rt_value;
-				}
-			}
-			*/
-			
-			/*
-			if (env->classes != NULL) {
-				if (hash_has_key(env->classes, var_name)) {
-					RuntimeValue* rt = hash_get(env->classes, var_name);
-					if (rt->runtime_type == C_CLASS_DEFINE) {
-						RuntimeValue* rt_value = malloc(sizeof(RuntimeValue) + 1);
-						rt_value->runtime_type = C_CLASS_DEFINE;
-						rt_value->value.klass = (RuntimeClass*) rt;
-						rt_value->is_return = 0;
-						return rt_value;
-					}
-				}
-			}
-			*/
 			
 			FunctionStackElement* peak = (FunctionStackElement*) stack_peak(env->call_stack);
 			HashTable* from_env;
@@ -1276,6 +1221,7 @@ RuntimeValue* execute(AST* ast) {
 					} */else if (peak != NULL && peak->invoke_method == 0) {
 						// set properties from object
 						current_object = peak->oop_info.object; // RuntimeObject
+						i++;
 					} else if (hash_has_key(env->vars, current_node_name)) {
 						current_object = (RuntimeValue*) hash_get(env->vars, current_node_name);
 						i++;

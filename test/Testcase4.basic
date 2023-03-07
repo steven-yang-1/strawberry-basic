@@ -17,6 +17,7 @@ Function Divide(a, b)
 	If b = 0 Then
 		Return "Not a number."
 	End If
+	PrintLine(5)
 	Return a / b
 End Function
 

@@ -445,6 +445,10 @@ ListBuffer* flatten_function_args(AST* node);
 
 void execute_function_header(ListBuffer* definitions, ListBuffer* values, AST* ast);
 
+int check_priviledge_method(Location class_location, char* class_method);
+
+int check_priviledge_property(Location class_location, char* class_property);
+
 RuntimeValue* execute(AST* ast);
 
 void raise_error(const char* msg, const AST* ast);

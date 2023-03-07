@@ -5,6 +5,7 @@ Class Student
 	Public Property id
 	Public Property name
 	Public Property gender
+	Public Property nextStudent
 	
 	Public Shared Property className = "Class I"
 	
@@ -38,4 +39,3 @@ PrintLine(student1.name)
 PrintLine("AFTER")
 student1.Print()
 PrintLine(Student.className)
-
