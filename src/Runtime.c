@@ -367,7 +367,7 @@ FunctionStackElement* dup_new_func_stack_element() {
 		var_env_pt = peak;
 	}
 	HashTable* new_table = malloc(sizeof(HashTable) + 1);
-	new_table = hash_init(var_env_pt->pool_size);
+	new_table = hash_init();
 	new_val->local_vars = new_table;
 	new_val->invoke_method = 2;
 	return new_val;
@@ -383,7 +383,7 @@ FunctionStackElement* dup_new_func_stack_element_object(RuntimeObject* object) {
 		var_env_pt = peak;
 	}
 	HashTable* new_table = malloc(sizeof(HashTable) + 1);
-	new_table = hash_init(var_env_pt->pool_size);
+	new_table = hash_init();
 	new_val->local_vars = new_table;
 	new_val->oop_info.object = object;
 	new_val->invoke_method = 0;
@@ -400,7 +400,7 @@ FunctionStackElement* dup_new_func_stack_element_class(RuntimeClass* klass) {
 		var_env_pt = peak;
 	}
 	HashTable* new_table = malloc(sizeof(HashTable) + 1);
-	new_table = hash_init(var_env_pt->pool_size);
+	new_table = hash_init();
 	new_val->local_vars = new_table;
 	new_val->oop_info.klass = klass;
 	new_val->invoke_method = 1;
@@ -467,16 +467,16 @@ AST* make_accessor(AST* left_node, char* attribute_name, AST* arguments, int lin
 
 void init_current_building_runtime_class() {
 	if (env->current_building_class->properties == NULL) {
-		env->current_building_class->properties = hash_init(40);
+		env->current_building_class->properties = hash_init();
 	}
 	if (env->current_building_class->shared_properties == NULL) {
-		env->current_building_class->shared_properties = hash_init(40);
+		env->current_building_class->shared_properties = hash_init();
 	}
 	if (env->current_building_class->methods == NULL) {
-		env->current_building_class->methods = hash_init(40);
+		env->current_building_class->methods = hash_init();
 	}
 	if (env->current_building_class->shared_methods == NULL) {
-		env->current_building_class->shared_methods = hash_init(40);
+		env->current_building_class->shared_methods = hash_init();
 	}
 }
 
@@ -666,12 +666,16 @@ RuntimeValue* execute(AST* ast) {
 					current_object = env->root_namespace; // RuntimeNamespace/RuntimeClass
 				} /*else if (hash_has_key(env->classes, current_node_name)) {
 					current_object = hash_get(env->classes, current_node_name); // RuntimeClass
-				}*/ else if (peak != NULL && peak->invoke_method == 0) {
+				}*/ 
+				else if (hash_has_key(env->vars, current_node_name)) {
+					current_object = (RuntimeValue*) hash_get(env->vars, current_node_name);
+					i++;
+				} else if (peak != NULL && peak->invoke_method == 0) {
 					// set properties from object
 					current_object = (RuntimeObject*)(peak->oop_info.object);	// RuntimeObject
 					i++;
 				} else {
-					raise_error("Cannot find specified namespace or class.", ast);
+					raise_error("Cannot find specified namespace or class.3", ast);
 					exit(0);
 				}
 			} else if (current_object->runtime_type == C_NAMESPACE) {
@@ -1094,7 +1098,7 @@ RuntimeValue* execute(AST* ast) {
 						set_object_rt_value = hash_get(env->functions, current_node_name);
 						break;
 					} else {
-						raise_error("Cannot find specified namespace or class.", ast);
+						raise_error("Cannot find specified namespace or class.1", ast);
 						exit(0);
 					}
 				} else if (current_object->runtime_type == C_NAMESPACE) {
@@ -1226,7 +1230,7 @@ RuntimeValue* execute(AST* ast) {
 						current_object = (RuntimeValue*) hash_get(env->vars, current_node_name);
 						i++;
 					} else {
-						raise_error("Cannot find specified namespace or class.", ast);
+						raise_error("Cannot find specified namespace or class.2", ast);
 						exit(0);
 					}
 				} else if (current_object->runtime_type == C_NAMESPACE) {
@@ -1424,7 +1428,7 @@ RuntimeValue* execute(AST* ast) {
 					new_namespace->runtime_type = C_NAMESPACE;
 					new_namespace->name = malloc(sizeof(char) * strlen(node_name) + 1);
 					strcpy(new_namespace->name, node_name);
-					new_namespace->next_level = hash_init(60);
+					new_namespace->next_level = hash_init();
 					hash_put(env->root_namespace->next_level, node_name, new_namespace);
 					env->current_namespace = new_namespace;
 				}
@@ -1434,7 +1438,7 @@ RuntimeValue* execute(AST* ast) {
 					new_namespace->runtime_type = C_NAMESPACE;
 					new_namespace->name = malloc(sizeof(char) * strlen(node_name) + 1);
 					strcpy(new_namespace->name, node_name);
-					new_namespace->next_level = hash_init(60);
+					new_namespace->next_level = hash_init();
 					
 					hash_put(env->current_namespace->next_level, node_name, new_namespace);
 					env->current_namespace = new_namespace;
@@ -1459,13 +1463,21 @@ RuntimeValue* execute(AST* ast) {
 		runtime_class->name = malloc(sizeof(char) * strlen(class_definition->class_name) + 1);
 		strcpy(runtime_class->name, class_definition->class_name);
 		
+		runtime_class->properties = NULL;
+		runtime_class->shared_properties = NULL;
+		runtime_class->methods = NULL;
+		runtime_class->shared_methods = NULL;
+		
 		env->current_building_class = runtime_class;
+		
 		init_current_building_runtime_class();
 		
 		execute(class_definition->class_attributes);
 		execute(class_definition->class_body);
 		
 		hash_put(env->current_namespace->next_level, class_definition->class_name, runtime_class);
+		
+		env->current_building_class = NULL;
 	} else if (ast->node_type == NODE_TYPE_CLASS_ATTR) {
 		if (env->current_building_class == NULL) {
 			raise_error("System error.10", ast);
@@ -1521,8 +1533,12 @@ RuntimeValue* execute(AST* ast) {
 		}*/
 	} else if (ast->node_type == NODE_TYPE_PROPERTY_DIM) {
 		Dimension* dim = (Dimension*) ast;
-		if (hash_has_key(env->current_building_class->properties, dim->var_name)) {
+		if (hash_has_key(env->current_building_class->properties, dim->var_name) && dim->shared == 0) {
 			raise_error("The property of the class has been defined. Please rename it!", ast);
+			exit(0);
+		}
+		if (hash_has_key(env->current_building_class->shared_properties, dim->var_name) && dim->shared == 1) {
+			raise_error("The shared property of the class has been defined. Please rename it!", ast);
 			exit(0);
 		}
 		if (dim->node != NULL) {
@@ -1622,7 +1638,7 @@ RuntimeValue* execute(AST* ast) {
 		me_wrapper->value.object = (RuntimeValue*) new_object;
 		me_wrapper->is_return = 0;
 		
-		new_object->data = (HashTable*) hash_init(60);
+		new_object->data = (HashTable*) hash_init();
 		
 		hash_put(new_object->data, "Me", me_wrapper);
 		
@@ -1630,6 +1646,7 @@ RuntimeValue* execute(AST* ast) {
 		
 		HashTable* properties_table = new_object->p_runtime_class->properties;
 		
+		/*
 		for (int j = 0; j < properties_table->pool_size; j++) {
 			LinkedList* list = properties_table->container[j];
 			if (list->count > 0) {
@@ -1643,6 +1660,16 @@ RuntimeValue* execute(AST* ast) {
 				}
 			}
 		}
+		*/
+		
+		unsigned int property_table_keys_count;
+		void** property_table_keys = hash_keys(properties_table, &property_table_keys_count);
+		
+		for (int i = 0; i < property_table_keys_count; i++) {
+			char* key = (char*)property_table_keys[i];
+			hash_put(new_object->data, key, (RuntimeValue*)hash_get(properties_table, key));
+		}
+		
 		
 		// instantiate the properties of parent class and traits.
 		

@@ -1,149 +1,51 @@
-#include "LinkedList.h"
 #include "HashTable.h"
-#include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <stdlib.h>
 
-int hash_key(char* key, int factor) {
-    int key_len = (int)strlen(key);
-    int sum = 0;
-    for (int i = 0; i < key_len; i++) {
-        sum += (int) key[i];
-    }
-    return sum % factor;
+HashTable* hash_init() {
+	HashTable* hash_table = (HashTable*) malloc(sizeof(HashTable) + 1);
+	ht_init(hash_table, HT_KEY_CONST | HT_VALUE_CONST, 0.05);
+	return hash_table;
 }
 
-HashTable* hash_init(int pool_size) {
-    HashTable* hash_table = (HashTable *) malloc(sizeof(HashTable) + 1);
-    if (hash_table != NULL) {
-        hash_table->count = 0;
-        hash_table->pool_size = pool_size;
-        hash_table->container = malloc(sizeof(LinkedList) * pool_size + 1);
-        //*(hash_table->container) = malloc(sizeof(LinkedList) * pool_size + 1);
-        for (int i = 0; i < pool_size; i++) {
-            hash_table->container[i] = list_init();
-            
-        }
-        hash_table->name_list = list_buffer_init();
-        return hash_table;
-    }
-    return NULL;
+void hash_put(HashTable *hash_table, void* key, void* value) {
+	ht_insert(hash_table, key, strlen(key)+1, value, sizeof(value));
 }
 
-void hash_put(HashTable* hash_table, char* key, void* value) {
-    int location = hash_key(key, hash_table->pool_size);
-    LinkedList* list = hash_table->container[location];
-    LinkedListNode* pointer_node = list->head;
-    HashTableNode* new_node = (HashTableNode *) malloc(sizeof(HashTableNode) + 1);
-    new_node->key = (char *) malloc(sizeof(char) * strlen(key) + 1);
-    strcpy(new_node->key, key);
-    new_node->value = value;
-    int exists = 0;
-    for (int i = 0; i <= list->count; i++) {
-        if (i > 0) {
-            if (!strcmp(key, ((HashTableNode *) (pointer_node->value))->key)) {
-                exists = 1;
-                break;
-            }
-        }
-        pointer_node = pointer_node->next_node;
-    }
-    if (exists) {
-        free(((HashTableNode *) pointer_node)->value);
-        ((HashTableNode *) pointer_node->value)->value = NULL;
-        ((HashTableNode *) pointer_node->value)->value = value;
-    } else {
-        list_add(list, new_node);
-    }
-    hash_table->count++;
-    list_buffer_add(hash_table->name_list, key);
+void* hash_get(HashTable *hash_table, void* key) {
+	size_t size;
+	void* result = ht_get(hash_table, key, strlen(key)+1, &size);
+	return result;
 }
 
-void* hash_get(HashTable *hash_table, char* key) {
-    int location = hash_key(key, hash_table->pool_size);
-    LinkedList* list = hash_table->container[location];
-    LinkedListNode* pointer_node = list->head;
-    for (int i = 0; i <= list->count; i++) {
-        if (i > 0) {
-            if (!strcmp(key, ((HashTableNode *) (pointer_node->value))->key)) {
-                return ((HashTableNode *) (pointer_node->value))->value;
-            }
-        }
-        pointer_node = pointer_node->next_node;
-    }
-    return NULL;
+void* hash_get_with_size(HashTable *hash_table, void* key, size_t *value_size) {
+	void* result = ht_get(hash_table, key, strlen(key)+1, value_size);
+	return result;
 }
 
-void hash_delete(HashTable *hash_table, char* key) {
-    int location = hash_key(key, hash_table->pool_size);
-    LinkedList* list = hash_table->container[location];
-    LinkedListNode* pointer_node = list->head;
-    int index = -1;
-    for (int i = 0; i <= list->count; i++) {
-        if (i > 0) {
-            if (!strcmp(key, ((HashTableNode *) (pointer_node->value))->key)) {
-                index = i - 1;
-                break;
-            }
-        }
-        pointer_node = pointer_node->next_node;
-    }
-    if (index != -1) {
-        list_delete(list, index);
-    }
-    hash_table->count--;
-    for (int i = 0; i <= hash_table->count; i++) {
-        if (!strcmp((char *) list_buffer_get(hash_table->name_list, i), key)) {
-            list_buffer_delete(hash_table->name_list, i);
-        }
-    }
+void hash_delete(HashTable *hash_table, void* key) {
+	ht_remove(hash_table, key, sizeof(key));
 }
 
 void hash_free(HashTable *hash_table) {
-    for (int i = 0; i < hash_table->pool_size; i++) {
-        list_free(hash_table->container[i]);
-    }
-    free(hash_table->container);
-    hash_table->container = NULL;
-    hash_table->count = 0;
-    list_buffer_free(hash_table->name_list);
-    free(hash_table);
-    hash_table = NULL;
+	ht_destroy(hash_table);
+}
+
+int hash_has_key(HashTable *hash_table, void* key) {
+	return ht_contains(hash_table, key, strlen(key)+1);
+}
+
+void** hash_keys(HashTable *hash_table, unsigned int* num_keys) {
+	void** keys = ht_keys(hash_table, num_keys);
+	return keys;
 }
 
 void hash_dump(HashTable *hash_table) {
-    printf("Map (\n");
-    for (int j = 0; j < hash_table->pool_size; j++) {
-        LinkedList* list = hash_table->container[j];
-        if (list->count > 0) {
-            LinkedListNode* pointer_node = list->head;
-            for (int i = 0; i <= list->count; i++) {
-                if (i > 0) {
-                    printf("\t%s -> %s\n",
-                           ((HashTableNode *) (pointer_node->value))->key,
-                           (char *)((HashTableNode *) (pointer_node->value))->value
-                    );
-                }
-                pointer_node = pointer_node->next_node;
-            }
-        }
-    }
-    printf(")\n");
-}
-
-int hash_has_key(HashTable *hash_table, char* key) {
-    int location = hash_key(key, hash_table->pool_size);
-    LinkedList* list = hash_table->container[location];
-    LinkedListNode* pointer_node = list->head;
-    int exists = 0;
-    for (int i = 0; i <= list->count; i++) {
-        if (i > 0) {
-            if (!strcmp(key, ((HashTableNode *) (pointer_node->value))->key)) {
-                exists = 1;
-                break;
-            }
-        }
-        pointer_node = pointer_node->next_node;
-    }
-    return exists;
+	unsigned int num_keys;
+	void** keys = ht_keys(hash_table, &num_keys);
+	printf("Map(");
+	for (int i = 0; i < num_keys; i++) {
+		printf("%s -> %s", (char*)keys[i], "");
+	}
+	printf(")");
 }

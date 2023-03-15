@@ -4,6 +4,7 @@
 #include "Stack.h"
 #include "HashTable.h"
 #include "ListBuffer.h"
+#include "LinkedList.h"
 
 #define NODE_TYPE_ASSIGN_VAR 10000
 #define NODE_TYPE_CONSTANT 10001

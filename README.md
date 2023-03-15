@@ -1,5 +1,5 @@
 ## **StrawberryBASIC**
-ver 0.01a14
+ver 0.01a15
 
 ![StrawberryBASIC](https://gitee.com/steven-yang-blue/strawberry-basic/raw/master/STRAWBERRY-BASIC.png)
 
@@ -48,6 +48,7 @@ Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定
 ACKNOWLEDGEMENT TO THE WORD-WIDE OPEN-SOURCE CONTRIBUTORS
 
 - Przemo Nowaczyk（波兰）
+- Dane Larsen（美国）
 
 PS. Generally and hopefully, I push the project to Gitee and GitHub synchronously. But in the view of the Internet content arguments between China and US, leading to the off and on network, GitHub version would probably be delayed of releasing. If you are eager to checkout the latest update, you may visit Gitee (a Chinese-mainland GitHub) version which the URL is given below.
 

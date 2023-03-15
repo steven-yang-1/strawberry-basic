@@ -1,11 +1,19 @@
 Namespace Test
 
+Class Teacher
+	Public Property name
+	Public Sub New(name)
+		Me.name = name
+	End Sub
+End Class
+
 Class Student
 
-	Public Property id
+	Public Property id = 0
 	Public Property name
 	Public Property gender
 	Public Property nextStudent
+	Public Property teacher
 	
 	Public Shared Property className = "Class I"
 	
@@ -13,7 +21,7 @@ Class Student
 		Me.id = id
 		Me.name = name
 		Me.gender = gender
-		Student.className = "New Class"
+		Me.teacher = New Teacher("Hello world!")
 	End Sub
 	
 	Public Sub Print()
@@ -39,3 +47,8 @@ PrintLine(student1.name)
 PrintLine("AFTER")
 student1.Print()
 PrintLine(Student.className)
+student1.nextStudent = New Student(127711, "New Student II", 1)
+PrintLine(student1.nextStudent.name)
+student1.nextStudent.nextStudent = New Student(127712, "New Student III", 1)
+PrintLine(student1.nextStudent.nextStudent.name)
+PrintLine(student1.teacher.name)
