@@ -49,7 +49,7 @@ ACKNOWLEDGEMENT TO THE WORD-WIDE OPEN-SOURCE CONTRIBUTORS
 
 - Przemo Nowaczyk（波兰）
 - Dane Larsen（美国）
-- Seungyoung Kim 金承英（韩国）
+- Seungyoung Kim 金承英（韩国）Team 团队
 
 PS. Generally and hopefully, I push the project to Gitee and GitHub synchronously. But in the view of the Internet content arguments between China and US, leading to the off and on network, GitHub version would probably be delayed of releasing. If you are eager to checkout the latest update, you may visit Gitee (a Chinese-mainland GitHub) version which the URL is given below.
 
