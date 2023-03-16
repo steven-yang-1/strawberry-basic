@@ -28,6 +28,10 @@ Break语句、Continue语句、Sub定义过程、Exit Sub语句、Function自定
 - make bison
 - make production
 
+配置系统变量
+
+- export LD_LIBRARY_PATH=编译好的lib路径:$LD_LIBRARY_PATH
+
 用标准输入流运行脚本（Ubuntu）：
 
 - ./BASIC < ../test/Testcase1.basic
