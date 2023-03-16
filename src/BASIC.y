@@ -507,13 +507,13 @@ int main()
 {
 	env = (RuntimeEnvironment*) malloc(sizeof(RuntimeEnvironment) + 1);
 	env->call_stack = stack_init();
-	env->vars = hash_init(60);
-	env->functions = hash_init(60);
+	env->vars = hash_init();
+	env->functions = hash_init();
 	
 	RuntimeNamespace* root_namespace = malloc(sizeof(RuntimeNamespace) + 1);
 	root_namespace->runtime_type = C_NAMESPACE;
 	root_namespace->name = "Root";
-	root_namespace->next_level = hash_init(55);
+	root_namespace->next_level = hash_init();
 	root_namespace->is_root = 1;
 	env->root_namespace = root_namespace;
 	
@@ -521,7 +521,7 @@ int main()
 	env->current_building_class = NULL;
 	
 	env->namespace_stack = stack_init();
-	env->imported_files = hash_init(100);
+	env->imported_files = hash_init();
 	
 	yyparse();
 	return 0;

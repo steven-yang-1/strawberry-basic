@@ -14,6 +14,7 @@ void list_buffer_update(ListBuffer* list_buffer, int index, void* value);
 void* list_buffer_get(ListBuffer* list_buffer, int index);
 void list_buffer_delete(ListBuffer* list_buffer, int index);
 void* list_buffer_delete_without_free(ListBuffer* list_buffer, int index);
+int list_buffer_size(ListBuffer* list_buffer);
 void list_buffer_dump(ListBuffer* list_buffer);
 void list_buffer_free(ListBuffer* list_buffer);
 

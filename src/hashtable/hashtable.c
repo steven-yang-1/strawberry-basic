@@ -339,7 +339,7 @@ void** ht_keys(hash_table *table, unsigned int *key_count)
             *key_count += 1;
             tmp = tmp->next;
             // sanity check, should never actually happen
-            if(*key_count >= table->key_count) {
+            if(*key_count > table->key_count) {
                 debug("ht_keys: too many keys, expected %d, got %d\n",
                         table->key_count, *key_count);
             }

@@ -1287,7 +1287,7 @@ RuntimeValue* execute(AST* ast) {
 			}
 			
 			if (ret_rt_val == NULL) {
-				raise_error("Cannot locate given path.", ast);
+				raise_error("Cannot locate given path.2", ast);
 				exit(0);
 			}
 			
@@ -1565,7 +1565,7 @@ RuntimeValue* execute(AST* ast) {
 		LinkedList* list_traits = list_init();
 		TraitImplementDefinition* tmp_p = trait_use;
 		do {
-			list_add(list_traits, tmp_p->trait_name);
+			list_add_last(list_traits, tmp_p->trait_name);
 			tmp_p = tmp_p->next_node;
 		} while (tmp_p != NULL);
 		env->current_building_class->traits = list_traits;

@@ -67,6 +67,10 @@ void* list_buffer_delete_without_free(ListBuffer* list_buffer, int index) {
     return tmp;
 }
 
+int list_buffer_size(ListBuffer* list_buffer) {
+	return list_buffer->count;
+}
+
 void list_buffer_dump(ListBuffer* list_buffer) {
     printf("List(\n");
     for (int i = 0; i < list_buffer->count; i++) {
